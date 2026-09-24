@@ -1,0 +1,119 @@
+{{define "session.service"}}[Unit]
+Description=ffxiv-stream headless session (sway + launcher + {{.Backend}})
+# A user service, not a system one with PAMName: logind would move the
+# processes into a session scope, where stopping the service leaves them
+# running and holding their ports.
+After=pipewire.service wireplumber.service ffxiv-stream-keyring.service
+Wants=pipewire.service wireplumber.service ffxiv-stream-keyring.service
+
+[Service]
+Environment=XDG_SESSION_TYPE=wayland
+{{- if .InContainer}}
+ExecStartPre=/bin/sh -c "until systemctl is-active -q ffxiv-stream-prepare.service; do sleep 1; done"
+{{- end}}
+ExecStart=/usr/local/lib/ffxiv-stream/session
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+{{end}}
+{{define "keyring.service"}}[Unit]
+Description=Secret Service (gnome-keyring) so XIVLauncher can keep the login
+# XIVLauncher stores the account password through libsecret. A headless
+# session has no login screen to unlock a keyring with, so the "login" keyring
+# has an empty password and is unlocked at start: the secret is protected by
+# the home directory's permissions, as for any auto-login desktop.
+Before=ffxiv-stream-session.service
+
+[Service]
+ExecStart=/bin/sh -c "printf '' | exec /usr/bin/gnome-keyring-daemon --replace --foreground --unlock --components=secrets"
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+{{end}}
+{{define "prepare.service"}}[Unit]
+Description=ffxiv-stream: make the attached GPU usable to the session
+# The GPU's device nodes and (NVIDIA) driver libraries are recreated by Incus
+# at every start; run at every boot so they are right before the session.
+After=local-fs.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/ffxiv-stream prepare-gpu
+
+[Install]
+WantedBy=multi-user.target
+{{end}}
+{{define "input-bridge.service"}}[Unit]
+Description=ffxiv-stream: announce the streaming server's virtual input devices to this container's udev
+After=systemd-udevd.service
+Requires=systemd-udevd.service
+
+[Service]
+ExecStart=/usr/local/bin/ffxiv-stream input-bridge
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+{{end}}
+{{define "container.service"}}[Unit]
+Description=ffxiv-stream: start the {{.Incus.Container}} container once its stream address exists
+After=incus.service tailscaled.service network-online.target
+Wants=incus.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/ffxiv-stream start-container
+
+[Install]
+WantedBy=multi-user.target
+{{end}}
+{{define "gpu-share.service"}}[Unit]
+Description=ffxiv-stream: give the game the GPU's memory while it runs
+After=incus.service
+Wants=incus.service
+
+[Service]
+ExecStart=/usr/local/bin/ffxiv-stream gpu-share
+ExecStopPost=/usr/local/bin/ffxiv-stream gpu-share --stop
+Restart=always
+RestartSec=5
+StateDirectory=ffxiv-stream
+
+[Install]
+WantedBy=multi-user.target
+{{end}}
+{{define "udev.rules"}}# ffxiv-stream: the streaming server in the {{.Incus.Container}} Incus container
+# creates the client's keyboard, mice and pads through uinput/uhid. Their event
+# nodes appear in this host's /dev/input, which the container sees through a
+# bind mount; ffxiv-stream input-bridge inside it announces them to its udev.
+# The names are the match: no real device is called this.
+#
+# Give just these nodes to the container (chown, because udev will not take a
+# numeric OWNER without a user record here): {{.HostUID}}:{{.HostGID}} is the
+# container's {{.Session.User}} user and its input group through the container's
+# id map. Every other input device stays unreadable from the container.
+#
+# (Not Incus's unix-hotplug device: in 6.23 it deadlocks incusd when the
+# container stops while a matched device is being removed.)
+{{range .InputMarks}}SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="*{{.}}*", MODE="0660", RUN+="/usr/bin/chown {{$.HostUID}}:{{$.HostGID}} $devnode"
+{{end}}{{end}}
+{{define "wireplumber.conf"}}# ffxiv-stream: sound only ever leaves through the stream. The streaming server
+# makes its own virtual sinks and captures them; nothing may create a sink that
+# plays aloud, even if sound hardware or Bluetooth appeared later.
+wireplumber.profiles = {
+  main = {
+    monitor.alsa = disabled
+    monitor.alsa-midi = disabled
+    monitor.bluez = disabled
+    monitor.bluez-midi = disabled
+  }
+}
+{{end}}

@@ -1,0 +1,100 @@
+# Release: push a tag vX.Y.Z; .github/workflows/release.yml runs GoReleaser.
+version: 2
+project_name: ffxiv-stream
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: ffxiv-stream
+    main: ./cmd/ffxiv-stream
+    binary: ffxiv-stream
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{.Version}}"]
+    goos: [linux, windows, darwin]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    files: [README.md, LICENSE, docs/*]
+
+checksum:
+  name_template: SHA256SUMS
+
+# Linux packages: the binary, docs and shell completions. The services are
+# written by `ffxiv-stream apply` for the init system it finds (systemd or
+# OpenRC), so the packages carry no units of their own.
+nfpms:
+  - id: packages
+    package_name: ffxiv-stream
+    vendor: Spaceghost
+    homepage: https://github.com/Spaceghost/ffxiv-stream
+    maintainer: Johnneylee Jack Rollins <git@spacegho.st>
+    description: Stream FINAL FANTASY XIV with Sunshine, Wolf or Selkies, set up by a wizard.
+    license: MIT
+    formats: [rpm, deb, apk, archlinux]
+    bindir: /usr/bin
+    contents:
+      - src: README.md
+        dst: /usr/share/doc/ffxiv-stream/README.md
+      - src: docs/backends.md
+        dst: /usr/share/doc/ffxiv-stream/backends.md
+      - src: docs/config.md
+        dst: /usr/share/doc/ffxiv-stream/config.md
+    archlinux:
+      packager: Spaceghost <git@spacegho.st>
+
+brews:
+  - name: ffxiv-stream
+    repository:
+      owner: Spaceghost
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/Spaceghost/ffxiv-stream
+    description: Stream FINAL FANTASY XIV with Sunshine, set up by a wizard.
+    license: MIT
+    install: bin.install "ffxiv-stream"
+    test: system "#{bin}/ffxiv-stream", "version"
+
+scoops:
+  - name: ffxiv-stream
+    repository:
+      owner: Spaceghost
+      name: scoop-bucket
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/Spaceghost/ffxiv-stream
+    description: Stream FINAL FANTASY XIV with Sunshine, set up by a wizard.
+    license: MIT
+
+winget:
+  - name: ffxiv-stream
+    publisher: Spaceghost
+    short_description: Stream FINAL FANTASY XIV with Sunshine, set up by a wizard.
+    license: MIT
+    homepage: https://github.com/Spaceghost/ffxiv-stream
+    package_identifier: Spaceghost.ffxiv-stream
+    repository:
+      owner: Spaceghost
+      name: winget-pkgs
+      branch: "ffxiv-stream-{{ .Version }}"
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+      pull_request:
+        enabled: true
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+
+release:
+  prerelease: auto
