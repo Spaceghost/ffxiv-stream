@@ -3,6 +3,7 @@ package wizard
 import (
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,10 +20,14 @@ func TestWizardAccessible(t *testing.T) {
 	}))
 	defer repo.Close()
 	t.Setenv("ACCESSIBLE", "1")
-	answers := strings.Join([]string{
-		"1",      // topology: the only option offered (host; no Incus in the fake facts)
-		"1",      // backend: sunshine
-		"",       // session user: empty keeps the default
+	lines := []string{
+		"1", // topology: the only option offered (host; no Incus in the fake facts)
+		"1", // backend: sunshine
+	}
+	if runtime.GOOS == "linux" {
+		lines = append(lines, "") // session user (asked on Linux only): empty keeps the default
+	}
+	answers := strings.Join(append(lines,
 		"3",      // resolution: 1920x1080@120 (sorted list: 720, 800, 1080@120, 1080@60, ...)
 		"4",      // bitrate: 80 Mbit/s
 		"1",      // listen: Tailscale
@@ -32,7 +37,7 @@ func TestWizardAccessible(t *testing.T) {
 		"y", // testing versions
 		"n", // no companions
 		"2", // save only
-	}, "\n") + "\n"
+	), "\n") + "\n"
 	stdin = byteReader{strings.NewReader(answers)}
 	start := config.Default()
 	start.Mods.Repos = []string{repo.URL}

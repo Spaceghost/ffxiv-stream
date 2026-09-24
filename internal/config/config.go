@@ -152,10 +152,15 @@ type Session struct {
 // DefaultModRepo is the ffxiv-stream family's own Dalamud repository.
 const DefaultModRepo = "https://spacegho.st/mods/ffxiv/plugins.json"
 
-// Default is a setup that works on a single-GPU Linux host with Incus.
+// Default is a setup that works on a single-GPU Linux host with Incus, and on
+// other systems the game and Sunshine on this machine.
 func Default() Config {
+	topology := TopologyIncus
+	if runtime.GOOS != "linux" {
+		topology = TopologyHost
+	}
 	return Config{
-		Topology: TopologyIncus,
+		Topology: topology,
 		Backend:  BackendSunshine,
 		Game:     Game{Launcher: "xivlauncher", Width: 1920, Height: 1080, FPS: 60, Process: "ffxiv_dx11.exe"},
 		Stream: Stream{
