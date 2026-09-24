@@ -3,10 +3,14 @@ package detect
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestLinuxGPUs(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("reads a Linux sysfs layout (built from symlinks)")
+	}
 	root := t.TempDir()
 	mk := func(card, pci, vendor, driver string, render string) {
 		dev := filepath.Join(root, "devices", pci)
