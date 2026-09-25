@@ -14,8 +14,8 @@
           pname = "ffxiv-stream";
           version = self.shortRev or "dev";
           src = ./.;
-          # Update with the hash nix prints after changing go.mod/go.sum.
-          vendorHash = pkgs.lib.fakeHash;
+          # After changing go.mod/go.sum: set pkgs.lib.fakeHash, build, and paste the hash nix prints.
+          vendorHash = "sha256-Kh9FwlPYK0l04KRamzYyNlUuur7/syRJebTfSxW2YxM=";
           subPackages = [ "cmd/ffxiv-stream" ];
           env.CGO_ENABLED = 0;
           ldflags = [ "-s" "-w" "-X main.version=${self.shortRev or "dev"}" ];
@@ -34,7 +34,7 @@
       nixosModules.default = { config, lib, pkgs, ... }:
         let
           cfg = config.services.ffxiv-stream;
-          pkg = self.packages.${pkgs.system}.default;
+          pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
           toml = pkgs.formats.toml { };
           configFile = if cfg.settings != null then toml.generate "ffxiv-stream.toml" cfg.settings else cfg.configFile;
         in

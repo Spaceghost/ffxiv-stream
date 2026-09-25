@@ -31,3 +31,11 @@ jobs:
         with:
           version: "~> v2"
           args: release --snapshot --clean --skip=publish
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      # Fails when go.mod/go.sum changed without updating flake.nix's vendorHash.
+      - run: nix build .#ffxiv-stream -L && ./result/bin/ffxiv-stream version
+      - run: nix flake check
