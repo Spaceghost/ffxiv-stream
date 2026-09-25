@@ -94,6 +94,7 @@ func usage() {
   ffxiv-stream detect [--json]         what this machine is and has
   ffxiv-stream plan [-v]               what apply would do; nothing is changed
   ffxiv-stream apply [--yes]           set up (or bring up to date) from the config
+      --when-idle                      wait for the game to exit first (safe while playing)
   ffxiv-stream doctor                  check the setup
   ffxiv-stream pair PIN [NAME]         pair a Moonlight client showing PIN
   ffxiv-stream version
@@ -202,10 +203,15 @@ func runApply(args []string) error {
 	fs := flag.NewFlagSet("apply", flag.ExitOnError)
 	path := configFlag(fs)
 	yes := fs.Bool("yes", false, "do not ask for confirmation")
+	whenIdle := fs.Bool("when-idle", false, "wait until the game is not running, then apply (implies --yes)")
 	_ = fs.Parse(args)
 	c, err := load(*path)
 	if err != nil {
 		return err
+	}
+	if *whenIdle {
+		*yes = true
+		waitForIdle(c)
 	}
 	f := detect.Run()
 	if !*yes {
@@ -222,6 +228,27 @@ func runApply(args []string) error {
 		}
 	}
 	return apply(c, f)
+}
+
+// waitForIdle blocks while the game runs: apply may restart the session and
+// swap the stream's port forwards, which would end a game in progress.
+func waitForIdle(c config.Config) {
+	container := ""
+	if c.Topology == config.TopologyIncus {
+		container = c.Incus.Container
+	}
+	said := false
+	for gpushare.GameRunning(c.Game.Process, container) {
+		if !said {
+			fmt.Printf("%s is running; waiting for it to exit before applying.\n", c.Game.Process)
+			said = true
+		}
+		time.Sleep(5 * time.Second)
+	}
+	if said {
+		time.Sleep(5 * time.Second) // let the launcher and Dalamud finish writing on exit
+		fmt.Println("The game has exited; applying.")
+	}
 }
 
 func apply(c config.Config, f detect.Facts) error {

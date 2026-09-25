@@ -148,7 +148,9 @@ loginctl enable-linger %[1]s`, u))
 				"One app, the session itself: the launcher is already on screen."),
 			step(t, "Set Sunshine's web UI login ("+c.Stream.WebUser+")", "Pairing clients happens through Sunshine's web UI or `ffxiv-stream pair`.",
 				[]string{"sunshine --creds " + c.Stream.WebUser + " <password>  (as " + u + ")"},
-				exists(t, home+"/.config/ffxiv-stream/sunshine-creds-set"),
+				// Done when set by an earlier apply, or when Sunshine already has a
+				// login (an existing setup): never replace a password someone chose.
+				succeeds(t, "sh", "-c", `test -e `+home+`/.config/ffxiv-stream/sunshine-creds-set || grep -q '"username"' `+home+`/.config/sunshine/sunshine_state.json`),
 				func() error {
 					pw, err := secret("sunshine-web-password", c.Stream.WebPassword)
 					if err != nil {

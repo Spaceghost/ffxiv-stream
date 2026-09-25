@@ -182,6 +182,14 @@ func (b *builder) incus() ([]plan.Step, error) {
 				if hasDevice(name, dev) {
 					continue
 				}
+				// A forward made by hand before ffxiv-stream (sun-video, ...) holds the
+				// same address and port: replace it, or the new one cannot listen.
+				want := fmt.Sprintf("%s:%s:%d", p.Proto, listen, p.Num)
+				for _, old := range proxiesListening(name, want) {
+					if _, err := sys.Output("incus", "config", "device", "remove", name, old); err != nil {
+						return err
+					}
+				}
 				if _, err := sys.Output("incus", "config", "device", "add", name, dev, "proxy", "nat=true",
 					fmt.Sprintf("listen=%s:%s:%d", p.Proto, listen, p.Num), fmt.Sprintf("connect=%s:%s:%d", p.Proto, ip, p.Num)); err != nil {
 					return err
@@ -376,6 +384,9 @@ func (b *builder) hostServices(host plan.Local) []plan.Step {
 	v := b.view(false)
 	data, _ := c.Encode()
 	s := []plan.Step{plan.File(host, "/etc/ffxiv-stream/config.toml", data, 0o600, "", "Write /etc/ffxiv-stream/config.toml", "The host services read it.")}
+	if b.f.Init == "systemd" {
+		s = append(s, retireHostUnits(host))
+	}
 	switch {
 	case b.f.Distro == "nixos":
 		// NixOS declares services in its configuration; units written into /etc
@@ -470,4 +481,54 @@ func otherStreamer(name string) string {
 		}
 	}
 	return ""
+}
+
+// proxiesListening names the container's proxy devices that listen on listen
+// (proto:address:port).
+func proxiesListening(name, listen string) []string {
+	out, err := sys.Output("incus", "config", "device", "list", name)
+	if err != nil {
+		return nil
+	}
+	var found []string
+	for _, dev := range strings.Fields(out) {
+		if typ, _ := sys.Output("incus", "config", "device", "get", name, dev, "type"); strings.TrimSpace(typ) != "proxy" {
+			continue
+		}
+		if l, _ := sys.Output("incus", "config", "device", "get", name, dev, "listen"); strings.TrimSpace(l) == listen {
+			found = append(found, dev)
+		}
+	}
+	return found
+}
+
+// Units and rules from the hand-built setup this project grew out of; their
+// ffxiv-stream-* replacements do the same jobs, and running both would double
+// them (two VRAM reservations, two rules chowning the same devices).
+var oldHostUnits = []string{"ffxiv-gpu-arbiter.service", "ffxiv-container.service"}
+
+const oldUdevRule = "/etc/udev/rules.d/70-sunshine-virtual-input.rules"
+
+func retireHostUnits(host plan.Local) plan.Step {
+	return step(host, "Turn off host services from a pre-ffxiv-stream setup, if any",
+		"ffxiv-gpu-arbiter, ffxiv-container and 70-sunshine-virtual-input.rules are superseded by the ffxiv-stream-* services and rule.",
+		[]string{"systemctl disable --now " + strings.Join(oldHostUnits, " "), "rm " + oldUdevRule},
+		func() (bool, error) {
+			for _, u := range oldHostUnits {
+				if _, err := sys.Output("systemctl", "is-enabled", "-q", u); err == nil {
+					return false, nil
+				}
+			}
+			return !sys.Exists(oldUdevRule), nil
+		},
+		func() error {
+			for _, u := range oldHostUnits {
+				_, _ = sys.Output("systemctl", "disable", "--now", u)
+			}
+			if err := os.Remove(oldUdevRule); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			_, err := sys.Output("udevadm", "control", "--reload")
+			return err
+		})
 }
