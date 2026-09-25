@@ -10,7 +10,7 @@ needs and how ffxiv-stream sets it up, with the upstream sources it follows
 | Host OS | Linux, Windows, macOS | Linux | Linux |
 | Sessions | one, shared | one private session per client | one, shared |
 | ffxiv-stream topologies | incus, host | host | incus, host |
-| Status in ffxiv-stream | tested (NVIDIA, Incus) | experimental | experimental |
+| Status in ffxiv-stream | tested (NVIDIA, Incus) | experimental | starts and serves; picture unchecked |
 | License | GPL-3.0 | MIT | MPL-2.0 |
 
 ## Sunshine
@@ -81,14 +81,18 @@ What ffxiv-stream does:
 - **Install routes.** Release packages for Fedora (`-fc-x86_64.rpm`), Debian/Ubuntu, Arch and
   Alpine; an AppImage; `pip install selkies`; and container images.
 - **What ffxiv-stream runs** inside the headless sway:
-  `selkies --wayland-host-display=$WAYLAND_DISPLAY --public --port=8080 --enable-https=true --encoder=h264enc`
-  with basic auth. Selkies refuses to start with basic auth and no password, so a password is
-  generated and kept in the state directory.
+  `selkies --wayland=true --wayland-host-display=$WAYLAND_DISPLAY --public --port=8080 --enable-https=true --encoder=h264enc`.
+  `--wayland-host-display` only takes effect with `--wayland=true`. Without it, Selkies captures X11,
+  which here is sway's rootless Xwayland. Keyboard and mouse go through sway's virtual-keyboard and
+  virtual-pointer protocols, not uinput. Selkies refuses to start with basic auth and no password,
+  so a password is generated, kept in the state directory, and passed as `SELKIES_BASIC_AUTH_PASSWORD`
+  from a mode-600 file, never on the command line.
 - **Encoders.** `--encoder=h264enc` picks NVENC or VA-API where the GPU has it.
 - **HTTPS matters.** Browsers allow gamepads, clipboard and pointer lock only in a secure
   context. Selkies makes a self-signed certificate on first start.
 - **Transport.** The default is WebSockets on one TCP port, with no STUN/TURN needed on a LAN
   or a tailnet. WebRTC (`--mode=webrtc`) needs UDP 49152–65535 or a TURN server.
-- **Unverified.** Selkies' docs disagree on whether an existing Wayland session can be captured
-  (`native.md` says no; `settings.md` documents `--wayland-host-display` for wlroots
-  compositors). It is marked experimental until tested on a real session.
+- **Tested 2026-09-24** in an Incus container on Fedora with an NVIDIA P4000 (Selkies 2.0.0 from the
+  `-fc-x86_64.rpm`): it installs and starts, finds NVENC ("Render node 1 encodes H264, H265 on nvenc"),
+  reports "Wayland (host compositor 'wayland-1') capture", and answers 401 without the login and 200
+  with it. The picture in a real browser has not been checked yet.

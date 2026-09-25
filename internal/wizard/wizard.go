@@ -146,14 +146,23 @@ func Run(start config.Config, f detect.Facts, advanced bool, review func(config.
 	return c, result, nil
 }
 
-// form builds a form; ACCESSIBLE=1 gives plain line-by-line prompts (screen
-// readers, and answering from a script).
+// form builds a form. ACCESSIBLE=1, or input that is not a terminal (answers
+// piped in by a script), gives plain line-by-line prompts; they also suit
+// screen readers.
 func form(groups ...*huh.Group) *huh.Form {
 	f := huh.NewForm(groups...)
-	if os.Getenv("ACCESSIBLE") != "" {
+	if accessible() {
 		f = f.WithAccessible(true).WithInput(stdin)
 	}
 	return f
+}
+
+func accessible() bool {
+	if os.Getenv("ACCESSIBLE") != "" {
+		return true
+	}
+	st, err := os.Stdin.Stat()
+	return err == nil && st.Mode()&os.ModeCharDevice == 0
 }
 
 // stdin hands out one byte per Read. huh's accessible mode starts a new

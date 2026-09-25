@@ -36,17 +36,20 @@ while :; do
     sleep 2
 done
 {{- else if eq .Backend "selkies"}}
-# Selkies 2.x: captures this sway through wlr-screencopy
-# (--wayland-host-display) and serves the stream to any browser on one port,
-# over WebSockets (no STUN/TURN needed on a LAN or a tailnet). HTTPS because
-# browsers only allow gamepads, clipboard and pointer lock in a secure context;
-# it makes a self-signed certificate on first start.
+# Selkies 2.x: --wayland=true with --wayland-host-display captures this sway by
+# screencopy straight into the encoder (without --wayland it captures X11,
+# which here is sway's rootless Xwayland), and injects keyboard and mouse
+# through sway's virtual-keyboard/pointer protocols. The stream goes to any
+# browser on one port over WebSockets (no STUN/TURN on a LAN or a tailnet).
+# HTTPS because browsers only allow gamepads, clipboard and pointer lock in a
+# secure context; it makes a self-signed certificate on first start. The
+# password comes from the environment (selkies.env, mode 600), never the
+# command line, where any process could read it.
 set -a; . "$HOME/.config/ffxiv-stream/selkies.env"; set +a
 while :; do
     echo "=== $(date -Is) starting selkies on ${WAYLAND_DISPLAY:-?} ==="
-    selkies --wayland-host-display="$WAYLAND_DISPLAY" --public --port={{.Selkies.Port}} \
-        --enable-https=true --enable-resize=false --encoder=h264enc \
-        --basic-auth-user="$SELKIES_USER" --basic-auth-password="$SELKIES_PASSWORD"
+    selkies --wayland=true --wayland-host-display="$WAYLAND_DISPLAY" --public --port={{.Selkies.Port}} \
+        --enable-https=true --enable-resize=false --encoder=h264enc --basic-auth-user={{.Selkies.User}}
     sleep 2
 done
 {{- end}}

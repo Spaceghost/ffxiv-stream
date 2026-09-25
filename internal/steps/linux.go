@@ -162,13 +162,13 @@ loginctl enable-linger %[1]s`, u))
 	case config.BackendSelkies:
 		s = append(s, step(t, "Write Selkies' login", "Selkies refuses to start with basic auth and no password.",
 			[]string{"write " + home + "/.config/ffxiv-stream/selkies.env (mode 600)"},
-			exists(t, home+"/.config/ffxiv-stream/selkies.env"),
+			succeeds(t, "grep", "-q", "^SELKIES_BASIC_AUTH_PASSWORD=", home+"/.config/ffxiv-stream/selkies.env"),
 			func() error {
 				pw, err := secret("selkies-password", c.Selkies.Password)
 				if err != nil {
 					return err
 				}
-				env := fmt.Sprintf("SELKIES_USER=%s\nSELKIES_PASSWORD=%s\n", c.Selkies.User, pw)
+				env := fmt.Sprintf("SELKIES_BASIC_AUTH_PASSWORD=%s\n", pw)
 				return t.WriteFile(home+"/.config/ffxiv-stream/selkies.env", []byte(env), 0o600, owner)
 			}))
 	}

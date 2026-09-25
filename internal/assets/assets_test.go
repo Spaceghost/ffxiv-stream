@@ -47,7 +47,7 @@ func TestStreamScriptPerBackend(t *testing.T) {
 		t.Error("no shim off NVIDIA")
 	}
 	v.Backend = config.BackendSelkies
-	if s := string(MustRender("stream.sh.tmpl", v)); !strings.Contains(s, "--wayland-host-display") || !strings.Contains(s, "--port=8080") {
+	if s := string(MustRender("stream.sh.tmpl", v)); !strings.Contains(s, "--wayland=true --wayland-host-display") || !strings.Contains(s, "--port=8080") || strings.Contains(s, "--basic-auth-password") {
 		t.Errorf("selkies:\n%s", s)
 	}
 	rule := string(MustRender("udev.rules", view{Config: c, HostUID: 1001000, HostGID: 1000104, InputMarks: []string{"libvirtualhid"}}))
