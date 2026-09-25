@@ -57,6 +57,8 @@ nfpms:
 
 brews:
   - name: ffxiv-stream
+    # Published only when the token for the tap repositories is configured.
+    skip_upload: '{{ if index .Env "TAP_GITHUB_TOKEN" }}false{{ else }}true{{ end }}'
     repository:
       owner: Spaceghost
       name: homebrew-tap
@@ -69,6 +71,8 @@ brews:
 
 scoops:
   - name: ffxiv-stream
+    # Published only when the token for the tap repositories is configured.
+    skip_upload: '{{ if index .Env "TAP_GITHUB_TOKEN" }}false{{ else }}true{{ end }}'
     repository:
       owner: Spaceghost
       name: scoop-bucket
@@ -79,6 +83,8 @@ scoops:
 
 winget:
   - name: ffxiv-stream
+    # Published only when the token for the tap repositories is configured.
+    skip_upload: '{{ if index .Env "TAP_GITHUB_TOKEN" }}false{{ else }}true{{ end }}'
     publisher: Spaceghost
     short_description: Stream FINAL FANTASY XIV with Sunshine, set up by a wizard.
     license: MIT
