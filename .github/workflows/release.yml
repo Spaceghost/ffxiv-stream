@@ -36,6 +36,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: images/xivlauncher
+          file: images/xivlauncher/Containerfile
           push: true
           tags: |
             ghcr.io/spaceghost/ffxiv-stream-xivlauncher:latest

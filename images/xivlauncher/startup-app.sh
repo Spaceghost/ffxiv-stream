@@ -9,9 +9,8 @@ mkdir -p "$HOME/.local/share/keyrings"
 [ -e "$HOME/.local/share/keyrings/login.keyring" ] || printf '[keyring]\ndisplay-name=login\nctime=0\nmtime=0\nlock-on-idle=false\nlock-after=false\n' > "$HOME/.local/share/keyrings/login.keyring"
 chmod 600 "$HOME/.local/share/keyrings/login.keyring"
 printf login > "$HOME/.local/share/keyrings/default"
-eval "$(dbus-launch --sh-syntax)"
-printf '' | gnome-keyring-daemon --replace --daemonize --unlock --components=secrets >/dev/null
 
 gow_log "Starting XIVLauncher"
 export DXVK_FRAME_RATE=${DXVK_FRAME_RATE:-60}
-exec /opt/xivlauncher/XIVLauncher.Core
+# A session bus for the keyring and the launcher, for as long as the launcher runs.
+exec dbus-run-session -- sh -c 'printf "" | gnome-keyring-daemon --replace --daemonize --unlock --components=secrets >/dev/null && exec /opt/xivlauncher/XIVLauncher.Core'

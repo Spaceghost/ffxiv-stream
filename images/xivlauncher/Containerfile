@@ -9,7 +9,7 @@ ARG XIVLAUNCHER_URL=https://github.com/goatcorp/XIVLauncher.Core/releases/latest
 
 RUN apt-get update -q \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends \
-      curl ca-certificates libsecret-1-0 gnome-keyring dbus-x11 libvulkan1 mesa-vulkan-drivers \
+      curl ca-certificates libsecret-1-0 gnome-keyring dbus libvulkan1 mesa-vulkan-drivers \
  && mkdir -p /opt/xivlauncher \
  && curl -fsSL "$XIVLAUNCHER_URL" | tar -xz -C /opt/xivlauncher \
  && rm -rf /var/lib/apt/lists/*
