@@ -88,7 +88,7 @@ func Run(start config.Config, f detect.Facts, advanced bool, review func(config.
 				huh.NewOption("H.264 only (every client decodes it)", "h264"), huh.NewOption("Automatic (HEVC/AV1 when the client can)", "auto")).
 				Value(&c.Stream.Codecs),
 			huh.NewSelect[string]().Title("Controller type the game sees").Options(
-				huh.NewOption("Xbox 360 (works everywhere, also under Wine)", "x360"), huh.NewOption("DualSense (needs hidraw)", "ds5"), huh.NewOption("Automatic", "auto")).
+				huh.NewOption("Xbox 360 (works everywhere, also under Wine)", "x360"), huh.NewOption("DualSense (touchpad, PS button; hidraw is passed through for you)", "ds5"), huh.NewOption("Automatic", "auto")).
 				Value(&c.Stream.Gamepad),
 			huh.NewInput().Title("Base port").Value(&port).Validate(func(s string) error {
 				n, err := strconv.Atoi(s)

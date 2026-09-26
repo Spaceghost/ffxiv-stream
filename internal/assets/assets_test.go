@@ -13,6 +13,7 @@ type view struct {
 	Encoder, LauncherCommand      string
 	HostUID, HostGID              int
 	InputMarks                    []string
+	HidrawDir                     string
 }
 
 func TestEveryTemplateRendersForEveryBackend(t *testing.T) {
@@ -53,6 +54,17 @@ func TestStreamScriptPerBackend(t *testing.T) {
 	rule := string(MustRender("udev.rules", view{Config: c, HostUID: 1001000, HostGID: 1000104, InputMarks: []string{"libvirtualhid"}}))
 	if !strings.Contains(rule, `ATTRS{name}=="*libvirtualhid*"`) || !strings.Contains(rule, "chown 1001000:1000104 $devnode") {
 		t.Errorf("udev rule:\n%s", rule)
+	}
+	if strings.Contains(rule, "hidraw") {
+		t.Error("an Xbox pad needs no hidraw rule")
+	}
+	ds5 := string(MustRender("udev.rules", view{Config: c, HostUID: 1001000, HostGID: 1000104, InputMarks: []string{"libvirtualhid"}, HidrawDir: "/dev/ffxiv-stream/ffxiv"}))
+	for _, want := range []string{`SUBSYSTEM=="hidraw", ACTION=="add", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*"`,
+		"mknod -m 0660 /dev/ffxiv-stream/ffxiv/%k c $major $minor", "chown 1001000:1000104 /dev/ffxiv-stream/ffxiv/%k",
+		`ACTION=="remove"`, `KERNEL=="event*", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*"`} {
+		if !strings.Contains(ds5, want) {
+			t.Errorf("the ds5 rule lacks %q:\n%s", want, ds5)
+		}
 	}
 	if conf := string(MustRender("sunshine.conf.tmpl", view{Config: c, Headless: true, Encoder: "nvenc"})); !strings.Contains(conf, "capture = wlr") || !strings.Contains(conf, "hevc_mode = 1") {
 		t.Errorf("sunshine.conf:\n%s", conf)

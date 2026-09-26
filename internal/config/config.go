@@ -80,7 +80,9 @@ type Stream struct {
 	// Codecs: "h264" (most compatible) or "auto" (HEVC/AV1 when the client can).
 	Codecs string `toml:"codecs"`
 	// Gamepad presented to the game: "x360" works everywhere, including Wine
-	// without hidraw; "ds5"/"auto" need hidraw access.
+	// without hidraw; "ds5"/"auto" emulate a PlayStation pad (touchpad, PS
+	// button), whose hidraw node Incus containers get through the host's udev
+	// rule and the input bridge (steps.HidrawHostDir).
 	Gamepad string `toml:"gamepad"`
 	// WebUser/WebPassword: Sunshine's web UI login. An empty password is
 	// generated at apply time and kept in the state directory.

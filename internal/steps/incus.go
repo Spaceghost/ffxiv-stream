@@ -141,6 +141,20 @@ func (b *builder) incus() ([]plan.Step, error) {
 			return err
 		}))
 
+	if dir := HidrawHostDir(b.c); dir != "" {
+		s = append(s, step(host, "Give the container the streamed pads' hidraw nodes",
+			"Sunshine emulates a PlayStation pad ("+b.c.Stream.Gamepad+"); Wine reads those through hidraw, which the host's udev rule copies into "+dir+".",
+			[]string{"mkdir -p " + dir, "incus config device add " + name + " host-hidraw disk source=" + dir + " path=" + ContainerHidrawDir},
+			func() (bool, error) { return hasDevice(name, "host-hidraw"), nil },
+			func() error {
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					return err
+				}
+				_, err := sys.Output("incus", "config", "device", "add", name, "host-hidraw", "disk", "source="+dir, "path="+ContainerHidrawDir)
+				return err
+			}))
+	}
+
 	s = append(s, step(host, "Pin the container's address", "The stream's port forwards need an address that does not change.",
 		[]string{"incus config device override " + name + " eth0 ipv4.address=<its current address>"},
 		func() (bool, error) {

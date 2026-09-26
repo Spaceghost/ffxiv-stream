@@ -104,6 +104,16 @@ WantedBy=multi-user.target
 # (Not Incus's unix-hotplug device: in 6.23 it deadlocks incusd when the
 # container stops while a matched device is being removed.)
 {{range .InputMarks}}SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="*{{.}}*", MODE="0660", RUN+="/usr/bin/chown {{$.HostUID}}:{{$.HostGID}} $devnode"
+{{end}}{{if .HidrawDir}}
+# PlayStation pad emulation (gamepad = {{.Stream.Gamepad}}): the pad is a uhid
+# device with Sony's vendor id (a real one is on USB or Bluetooth, never under
+# uhid), and Wine reads PlayStation pads through hidraw. Its event nodes are
+# handed over like the ones above; its hidraw node, which lives in /dev itself,
+# is copied into {{.HidrawDir}}, which the container sees at
+# /dev/hidraw-stream.
+SUBSYSTEM=="input", KERNEL=="event*", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*", MODE="0660", RUN+="/usr/bin/chown {{.HostUID}}:{{.HostGID}} $devnode"
+SUBSYSTEM=="hidraw", ACTION=="add", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*", RUN+="/bin/sh -c 'mkdir -p {{.HidrawDir}} && rm -f {{.HidrawDir}}/%k && mknod -m 0660 {{.HidrawDir}}/%k c $major $minor && chown {{.HostUID}}:{{.HostGID}} {{.HidrawDir}}/%k'"
+SUBSYSTEM=="hidraw", ACTION=="remove", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*", RUN+="/bin/rm -f {{.HidrawDir}}/%k"
 {{end}}{{end}}
 {{define "wireplumber.conf"}}# ffxiv-stream: sound only ever leaves through the stream. The streaming server
 # makes its own virtual sinks and captures them; nothing may create a sink that

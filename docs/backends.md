@@ -39,7 +39,13 @@ What ffxiv-stream does:
   on hardware HEVC decode) and a 50 Mbit/s cap (Wi-Fi clients lose packets above what their link
   carries). Both can be changed in the wizard's advanced mode.
 - **Pads.** They are presented as Xbox 360 pads (`gamepad = x360`), which Wine reads over plain
-  evdev; DualSense emulation needs hidraw.
+  evdev. `gamepad = ds5` emulates a DualSense instead, so the touchpad and the PS button reach
+  the game (Ghostty for FFXIV uses them for its terminal). Wine reads PlayStation pads through
+  hidraw, and a container has none: the host's udev rule copies the streamed pad's hidraw node
+  into `/dev/ffxiv-stream/<container>/` (under `/dev`, because `/run` is mounted `nodev`), Incus
+  bind-mounts that at `/dev/hidraw-stream`, and the input bridge links each node into `/dev` and
+  announces it to the container's udev. Only uhid devices with Sony's vendor id are passed: a
+  real pad is on USB or Bluetooth, never uhid.
 - **Install routes.**
   - Fedora: LizardByte's Copr.
   - Debian/Ubuntu and Arch: the release packages.

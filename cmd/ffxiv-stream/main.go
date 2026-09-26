@@ -390,6 +390,13 @@ func runStartContainer(args []string) error {
 			time.Sleep(time.Second)
 		}
 	}
+	// /dev is a fresh devtmpfs at every boot; the hidraw bind mount needs its
+	// source to exist before the container starts
+	if dir := steps.HidrawHostDir(c); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
 	state, _ := sys.Output("incus", "list", "^"+name+"$", "-c", "s", "-f", "csv")
 	if state == "RUNNING" {
 		return nil
