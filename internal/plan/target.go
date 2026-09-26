@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/sys"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sys"
 )
 
 // Target is a machine steps act on: this one, or an Incus container on it.
@@ -59,7 +59,7 @@ func (l Local) WriteFile(path string, data []byte, mode os.FileMode, owner strin
 			}
 		}
 	}
-	tmp := path + ".ffxiv-stream.tmp"
+	tmp := path + ".xivstream.tmp"
 	if err := os.WriteFile(tmp, data, mode); err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ if [ -n "$3" ]; then
     h=$(getent passwd "${3%%:*}" | cut -d: -f6)
     case "$d/" in "$h"/*) p="$d"; while [ "$p" != "$h" ] && [ "$p" != / ]; do chown "$3" "$p"; p=$(dirname "$p"); done;; esac
 fi
-t="$1.ffxiv-stream.tmp"; cat > "$t"; chmod "$2" "$t"; [ -z "$3" ] || chown "$3" "$t"; mv "$t" "$1"`
+t="$1.xivstream.tmp"; cat > "$t"; chmod "$2" "$t"; [ -z "$3" ] || chown "$3" "$t"; mv "$t" "$1"`
 	_, err := c.RunInput(data, "sh", "-c", script, "-", path, fmt.Sprintf("%o", mode), owner)
 	return err
 }

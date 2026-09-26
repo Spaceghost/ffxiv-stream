@@ -1,9 +1,9 @@
-// Package config is ffxiv-stream's one configuration file.
+// Package config is xivstream's one configuration file.
 //
 // The wizard writes it; `apply` reads it. Everything the wizard asks is a key
 // here, so a setup can be reproduced (or scripted) without the wizard:
 //
-//	ffxiv-stream apply --config ./my-setup.toml --yes
+//	xivstream apply --config ./my-setup.toml --yes
 //
 // Values left empty are detected at apply time (the GPU's render node, the
 // Tailscale address, the free VRAM), never frozen at wizard time.
@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -151,7 +152,7 @@ type Session struct {
 	User string `toml:"user"`
 }
 
-// DefaultModRepo is the ffxiv-stream family's own Dalamud repository.
+// DefaultModRepo is the xivstream family's own Dalamud repository.
 const DefaultModRepo = "https://spacegho.st/mods/ffxiv/plugins.json"
 
 // Default is a setup that works on a single-GPU Linux host with Incus, and on
@@ -181,51 +182,88 @@ func Default() Config {
 
 // Path is the default config location for this OS.
 func Path() string {
-	if p := os.Getenv("FFXIV_STREAM_CONFIG"); p != "" {
+	if p := os.Getenv("XIVSTREAM_CONFIG"); p != "" {
 		return p
 	}
 	switch runtime.GOOS {
 	case "windows":
-		return filepath.Join(os.Getenv("ProgramData"), "ffxiv-stream", "config.toml")
+		return filepath.Join(os.Getenv("ProgramData"), "xivstream", "config.toml")
 	case "darwin":
 		home, _ := os.UserHomeDir()
-		return filepath.Join(home, "Library", "Application Support", "ffxiv-stream", "config.toml")
+		return filepath.Join(home, "Library", "Application Support", "xivstream", "config.toml")
 	default:
 		if os.Geteuid() == 0 {
-			return "/etc/ffxiv-stream/config.toml"
+			return "/etc/xivstream/config.toml"
 		}
 		dir, err := os.UserConfigDir()
 		if err != nil {
 			dir = "."
 		}
-		return filepath.Join(dir, "ffxiv-stream", "config.toml")
+		return filepath.Join(dir, "xivstream", "config.toml")
 	}
 }
 
-// StateDir holds what apply generates and must keep (the web password).
+// LegacyName is what xivstream was called before its first release. Its config
+// is still read, and its state moved, so a machine set up under the old name
+// carries over.
+const LegacyName = "ffxiv-stream"
+
+// Legacy is where the old name kept what now lives at path: the last path
+// element named xivstream renamed back.
+func Legacy(path string) string {
+	parts := strings.Split(path, string(filepath.Separator))
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] == "xivstream" {
+			parts[i] = LegacyName
+			return strings.Join(parts, string(filepath.Separator))
+		}
+	}
+	return ""
+}
+
+// StateDir holds what apply generates and must keep (the web password). A
+// state directory under the old name is moved to the new one the first time.
 func StateDir() string {
 	if p := os.Getenv("STATE_DIRECTORY"); p != "" {
 		return p
 	}
+	var dir string
 	switch runtime.GOOS {
 	case "windows", "darwin":
 		return filepath.Dir(Path())
 	default:
 		if os.Geteuid() == 0 {
-			return "/var/lib/ffxiv-stream"
+			dir = "/var/lib/xivstream"
+		} else {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "."
+			}
+			dir = filepath.Join(home, ".local", "state", "xivstream")
 		}
-		dir, err := os.UserHomeDir()
-		if err != nil {
-			return "."
-		}
-		return filepath.Join(dir, ".local", "state", "ffxiv-stream")
 	}
+	if old := Legacy(dir); old != "" {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			if st, err := os.Stat(old); err == nil && st.IsDir() {
+				_ = os.Rename(old, dir)
+			}
+		}
+	}
+	return dir
 }
 
 // Load reads path over the defaults, so a file may set only what differs.
 func Load(path string) (Config, error) {
 	c := Default()
 	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) && path == Path() {
+		// set up under the old name: its config, until apply writes this one
+		if old := Legacy(path); old != "" {
+			if d, e := os.ReadFile(old); e == nil {
+				data, err = d, nil
+			}
+		}
+	}
 	if err != nil {
 		return c, err
 	}
@@ -281,8 +319,8 @@ func (c Config) Validate() error {
 // Encode renders the config as TOML, with a header saying where it came from.
 func (c Config) Encode() ([]byte, error) {
 	var buf bytes.Buffer
-	buf.WriteString("# ffxiv-stream configuration. Written by `ffxiv-stream wizard`; apply it with\n")
-	buf.WriteString("# `ffxiv-stream apply`. Empty values are detected at apply time.\n\n")
+	buf.WriteString("# xivstream configuration. Written by `xivstream wizard`; apply it with\n")
+	buf.WriteString("# `xivstream apply`. Empty values are detected at apply time.\n\n")
 	if err := toml.NewEncoder(&buf).Encode(c); err != nil {
 		return nil, err
 	}

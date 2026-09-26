@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/sys"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sys"
 )
 
 type Facts struct {

@@ -1,5 +1,5 @@
 // Package inputbridge announces the streaming server's virtual input devices
-// to a container's udev (`ffxiv-stream input-bridge`, run inside the guest).
+// to a container's udev (`xivstream input-bridge`, run inside the guest).
 //
 // Sunshine creates the Moonlight client's keyboard, mice and gamepads through
 // /dev/uinput and /dev/uhid. The kernel puts their event nodes in the host's
@@ -203,7 +203,7 @@ func (b *Bridge) added(node string, startup bool) {
 	// After a restart of this service, devices announced by the previous run
 	// are already in udev (and open in libinput); a second "add" would give
 	// sway duplicate keyboards and mice.
-	if startup && os.Getenv("FFXIV_STREAM_REANNOUNCE") == "" {
+	if startup && os.Getenv("XIVSTREAM_REANNOUNCE") == "" {
 		if _, err := os.Stat(filepath.Join(b.UdevData, "c"+props["MAJOR"]+":"+props["MINOR"])); err == nil {
 			return
 		}
@@ -267,7 +267,7 @@ func (b *Bridge) hidrawAdded(node string, startup bool) {
 		return
 	}
 	b.known[key] = props
-	if startup && os.Getenv("FFXIV_STREAM_REANNOUNCE") == "" {
+	if startup && os.Getenv("XIVSTREAM_REANNOUNCE") == "" {
 		if _, err := os.Stat(filepath.Join(b.UdevData, "c"+props["MAJOR"]+":"+props["MINOR"])); err == nil {
 			return
 		}
@@ -308,7 +308,7 @@ func (b *Bridge) waitUntilOurs(node string) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	log.Printf("warning: %s never became group input; is the host's ffxiv-stream udev rule installed?", path)
+	log.Printf("warning: %s never became group input; is the host's xivstream udev rule installed?", path)
 }
 
 // Message builds the netlink message the kernel re-broadcasts as a uevent.

@@ -1,12 +1,12 @@
-// ffxiv-stream sets up FINAL FANTASY XIV game streaming (Sunshine, Wolf or
+// xivstream sets up FINAL FANTASY XIV game streaming (Sunshine, Wolf or
 // Selkies) with its mods, and runs the small services that keep it working.
 //
-//	ffxiv-stream                  the wizard (or `wizard`)
-//	ffxiv-stream detect           what this machine is and has
-//	ffxiv-stream plan [-v]        what apply would do (nothing changes)
-//	ffxiv-stream apply [--yes]    do it
-//	ffxiv-stream doctor           check a setup
-//	ffxiv-stream pair PIN [NAME]  pair a Moonlight client
+//	xivstream                  the wizard (or `wizard`)
+//	xivstream detect           what this machine is and has
+//	xivstream plan [-v]        what apply would do (nothing changes)
+//	xivstream apply [--yes]    do it
+//	xivstream doctor           check a setup
+//	xivstream pair PIN [NAME]  pair a Moonlight client
 //
 // Services (started by the units apply installs):
 //
@@ -24,16 +24,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
-	"github.com/Spaceghost/ffxiv-stream/internal/detect"
-	"github.com/Spaceghost/ffxiv-stream/internal/gpuprep"
-	"github.com/Spaceghost/ffxiv-stream/internal/gpushare"
-	"github.com/Spaceghost/ffxiv-stream/internal/inputbridge"
-	"github.com/Spaceghost/ffxiv-stream/internal/plan"
-	"github.com/Spaceghost/ffxiv-stream/internal/steps"
-	"github.com/Spaceghost/ffxiv-stream/internal/sunshine"
-	"github.com/Spaceghost/ffxiv-stream/internal/sys"
-	"github.com/Spaceghost/ffxiv-stream/internal/wizard"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/detect"
+	"github.com/Spaceghost/xivstream-dalamud/internal/gpuprep"
+	"github.com/Spaceghost/xivstream-dalamud/internal/gpushare"
+	"github.com/Spaceghost/xivstream-dalamud/internal/inputbridge"
+	"github.com/Spaceghost/xivstream-dalamud/internal/plan"
+	"github.com/Spaceghost/xivstream-dalamud/internal/steps"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sunshine"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sys"
+	"github.com/Spaceghost/xivstream-dalamud/internal/wizard"
 )
 
 // version is set by the release build (-ldflags "-X main.version=...").
@@ -74,7 +74,7 @@ func main() {
 	case "start-container":
 		err = runStartContainer(args)
 	case "version", "--version", "-V":
-		fmt.Println("ffxiv-stream", version)
+		fmt.Println("xivstream", version)
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -82,22 +82,22 @@ func main() {
 		os.Exit(2)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ffxiv-stream:", err)
+		fmt.Fprintln(os.Stderr, "xivstream:", err)
 		os.Exit(1)
 	}
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `ffxiv-stream: FINAL FANTASY XIV game streaming, set up for you.
+	fmt.Fprint(os.Stderr, `xivstream: FINAL FANTASY XIV game streaming, set up for you.
 
-  ffxiv-stream [wizard] [--advanced]   ask a few questions, show the plan, apply it
-  ffxiv-stream detect [--json]         what this machine is and has
-  ffxiv-stream plan [-v]               what apply would do; nothing is changed
-  ffxiv-stream apply [--yes]           set up (or bring up to date) from the config
+  xivstream [wizard] [--advanced]   ask a few questions, show the plan, apply it
+  xivstream detect [--json]         what this machine is and has
+  xivstream plan [-v]               what apply would do; nothing is changed
+  xivstream apply [--yes]           set up (or bring up to date) from the config
       --when-idle                      wait for the game to exit first (safe while playing)
-  ffxiv-stream doctor                  check the setup
-  ffxiv-stream pair PIN [NAME]         pair a Moonlight client showing PIN
-  ffxiv-stream version
+  xivstream doctor                  check the setup
+  xivstream pair PIN [NAME]         pair a Moonlight client showing PIN
+  xivstream version
 
   --config PATH   use this config (default `+config.Path()+`)
 
@@ -117,7 +117,7 @@ func configFlag(fs *flag.FlagSet) *string {
 func load(path string) (config.Config, error) {
 	c, err := config.Load(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return c, fmt.Errorf("no configuration at %s yet: run `ffxiv-stream wizard` first", path)
+		return c, fmt.Errorf("no configuration at %s yet: run `xivstream wizard` first", path)
 	}
 	return c, err
 }
@@ -144,7 +144,7 @@ func runWizard(args []string) error {
 		if err := c.Save(*path); err != nil {
 			return err
 		}
-		fmt.Printf("Saved %s. Apply it with: sudo ffxiv-stream apply --config %s\n", *path, *path)
+		fmt.Printf("Saved %s. Apply it with: sudo xivstream apply --config %s\n", *path, *path)
 		return nil
 	}
 	if err := c.Save(*path); err != nil {
@@ -270,7 +270,7 @@ func apply(c config.Config, f detect.Facts) error {
 	}
 	switch c.Backend {
 	case config.BackendSunshine, config.BackendWolf:
-		fmt.Println("Pair a client: add this machine in Moonlight, then run `ffxiv-stream pair <PIN>` with the PIN it shows.")
+		fmt.Println("Pair a client: add this machine in Moonlight, then run `xivstream pair <PIN>` with the PIN it shows.")
 	case config.BackendSelkies:
 		fmt.Printf("Open https://<this machine>:%d in a browser.\n", c.Selkies.Port)
 	}
@@ -294,7 +294,7 @@ func runDoctor(args []string) error {
 	plan.Print(os.Stdout, entries, false)
 	for _, e := range entries {
 		if e.State != plan.Done {
-			return errors.New("the setup is incomplete or out of date: `ffxiv-stream apply` brings it up to date")
+			return errors.New("the setup is incomplete or out of date: `xivstream apply` brings it up to date")
 		}
 	}
 	fmt.Println("Everything is in place.")
@@ -306,7 +306,7 @@ func runPair(args []string) error {
 	path := configFlag(fs)
 	_ = fs.Parse(args)
 	if fs.NArg() < 1 {
-		return errors.New("usage: ffxiv-stream pair PIN [NAME]")
+		return errors.New("usage: xivstream pair PIN [NAME]")
 	}
 	c, err := load(*path)
 	if err != nil {
@@ -351,7 +351,7 @@ func runGPUShare(args []string) error {
 		s.Stop()
 		return nil
 	}
-	return runService("ffxiv-stream-gpu-share", s.Run, s.Stop)
+	return runService("xivstream-gpu-share", s.Run, s.Stop)
 }
 
 func runRenderNode() error {

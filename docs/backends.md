@@ -1,7 +1,7 @@
 # Streaming backends
 
-ffxiv-stream sets up one of three streaming servers. This page is what each one
-needs and how ffxiv-stream sets it up, with the upstream sources it follows
+xivstream sets up one of three streaming servers. This page is what each one
+needs and how xivstream sets it up, with the upstream sources it follows
 (checked 2026-09-23).
 
 | | Sunshine | Wolf | Selkies |
@@ -9,15 +9,15 @@ needs and how ffxiv-stream sets it up, with the upstream sources it follows
 | Clients | Moonlight (every platform) | Moonlight | any web browser |
 | Host OS | Linux, Windows, macOS | Linux | Linux |
 | Sessions | one, shared | one private session per client | one, shared |
-| ffxiv-stream topologies | incus, host | host | incus, host |
-| Status in ffxiv-stream | tested (NVIDIA, Incus) | experimental | starts and serves; picture unchecked |
+| xivstream topologies | incus, host | host | incus, host |
+| Status in xivstream | tested (NVIDIA, Incus) | experimental | starts and serves; picture unchecked |
 | License | GPL-3.0 | MIT | MPL-2.0 |
 
 ## Sunshine
 
 <https://github.com/LizardByte/Sunshine>
 
-What ffxiv-stream does:
+What xivstream does:
 
 - **Linux headless (Incus or host).** The session is a headless sway, which implements
   wlr-screencopy (`capture = wlr`); gamescope does not, and a container has no scanout
@@ -31,7 +31,7 @@ What ffxiv-stream does:
 - **Incus port forwards** use `nat=true`. Incus's userspace proxy dropped over 400k UDP
   video packets in a session, which looked like flicker.
 - **Input in a container.** Sunshine's virtual devices appear in the host's `/dev/input`. A
-  host udev rule hands just those nodes to the container's user, and `ffxiv-stream
+  host udev rule hands just those nodes to the container's user, and `xivstream
   input-bridge` inside the container injects their uevents, so the container's udev and
   libinput see them. Incus's own `unix-hotplug` device is not used: in Incus 6.23 it deadlocks
   incusd.
@@ -42,7 +42,7 @@ What ffxiv-stream does:
   evdev. `gamepad = ds5` emulates a DualSense instead, so the touchpad and the PS button reach
   the game (Ghostty for FFXIV uses them for its terminal). Wine reads PlayStation pads through
   hidraw, and a container has none: the host's udev rule copies the streamed pad's hidraw node
-  into `/dev/ffxiv-stream/<container>/` (under `/dev`, because `/run` is mounted `nodev`), Incus
+  into `/dev/xivstream/<container>/` (under `/dev`, because `/run` is mounted `nodev`), Incus
   bind-mounts that at `/dev/hidraw-stream`, and the input bridge links each node into `/dev` and
   announces it to the container's udev. Only uhid devices with Sony's vendor id are passed: a
   real pad is on USB or Bluetooth, never uhid.
@@ -61,22 +61,22 @@ What ffxiv-stream does:
 - There is no versioned release after `v2024.07`. The image is `ghcr.io/games-on-whales/wolf:stable`,
   built from the `stable` branch.
 - **Rootful only.** Rootless Podman starts Wolf, but launching an app fails: "device cgroup rules
-  are not supported in rootless mode" (issue #477). ffxiv-stream writes a rootful Quadlet
+  are not supported in rootless mode" (issue #477). xivstream writes a rootful Quadlet
   (`/etc/containers/systemd/wolf.container`) with host networking, the Podman socket mounted as
   `docker.sock`, `/dev` and `/run/udev`, `--ipc=host` and `--device-cgroup-rule "c 13:* rmw"`.
 - **Host setup.** Wolf's `85-wolf.rules` (installed as is from upstream, so streamed pads get
   their own seat and cannot drive the host desktop), plus `uhid` in `modules-load.d`.
-- **NVIDIA.** ffxiv-stream uses CDI (`nvidia.com/gpu=all`, nvidia-container-toolkit ≥ 1.16).
+- **NVIDIA.** xivstream uses CDI (`nvidia.com/gpu=all`, nvidia-container-toolkit ≥ 1.16).
   Wolf's docs call their driver-volume route steadier (issue #152); set it up by hand if CDI
   misbehaves. `nvidia-drm.modeset=1` is required either way.
-- **Apps are containers.** ffxiv-stream's app image, `ghcr.io/spaceghost/ffxiv-stream-xivlauncher`
+- **Apps are containers.** xivstream's app image, `ghcr.io/spaceghost/xivstream-xivlauncher`
   (see `images/xivlauncher`), is XIVLauncher.Core on GoW's `base-app`. Wolf reads
   `/etc/wolf/cfg/config.toml` at start and rewrites it only when a client pairs.
 - **Pairing.** Moonlight shows a PIN, and Wolf logs `Insert pin at http://<ip>:47989/pin/#<secret>`.
   The API on `/var/run/wolf/wolf.sock` also works: `GET /api/v1/pair/pending`, then
   `POST /api/v1/pair/client {pair_secret, pin}`.
 - **Not in an Incus container.** Wolf's docs say it runs in an LXC container only when that
-  container is privileged. ffxiv-stream therefore offers Wolf on the host only.
+  container is privileged. xivstream therefore offers Wolf on the host only.
 
 ## Selkies
 
@@ -86,7 +86,7 @@ What ffxiv-stream does:
   (`nvh264enc`, WebRTC by default) no longer apply.
 - **Install routes.** Release packages for Fedora (`-fc-x86_64.rpm`), Debian/Ubuntu, Arch and
   Alpine; an AppImage; `pip install selkies`; and container images.
-- **What ffxiv-stream runs** inside the headless sway:
+- **What xivstream runs** inside the headless sway:
   `selkies --wayland=true --wayland-host-display=$WAYLAND_DISPLAY --public --port=8080 --enable-https=true --encoder=h264enc`.
   `--wayland-host-display` only takes effect with `--wayland=true`. Without it, Selkies captures X11,
   which here is sway's rootless Xwayland. Keyboard and mouse go through sway's virtual-keyboard and

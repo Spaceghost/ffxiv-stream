@@ -1,5 +1,5 @@
 // Package gpushare gives the game the GPU's memory while it runs
-// (`ffxiv-stream gpu-share`, a long-running service).
+// (`xivstream gpu-share`, a long-running service).
 //
 // Two ways, per [gpu_share] mode:
 //
@@ -32,8 +32,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
-	"github.com/Spaceghost/ffxiv-stream/internal/sys"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sys"
 )
 
 type Sharer struct {

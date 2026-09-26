@@ -1,4 +1,4 @@
-// Package assets holds the files ffxiv-stream installs, as templates rendered
+// Package assets holds the files xivstream installs, as templates rendered
 // from the configuration. They are the setup this project grew out of, kept
 // with the comments that explain each piece.
 package assets

@@ -3,7 +3,7 @@ package steps
 import (
 	"testing"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
 )
 
 func TestIdmapBases(t *testing.T) {

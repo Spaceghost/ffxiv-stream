@@ -5,13 +5,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
-	"github.com/Spaceghost/ffxiv-stream/internal/plan"
-	"github.com/Spaceghost/ffxiv-stream/internal/sys"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/plan"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sys"
 )
 
 // windows: Sunshine (its installer registers its own service) and XIVLauncher
-// through winget; ffxiv-stream's GPU sharing as a Windows service.
+// through winget; xivstream's GPU sharing as a Windows service.
 func (b *builder) windows() ([]plan.Step, error) {
 	c := b.c
 	host := plan.Local{}
@@ -74,9 +74,9 @@ func (b *builder) windowsServices(host plan.Local) []plan.Step {
 	if c.Share.Mode == config.ShareNone {
 		return s
 	}
-	exe := filepath.Join(os.Getenv("ProgramFiles"), "ffxiv-stream", "ffxiv-stream.exe")
+	exe := filepath.Join(os.Getenv("ProgramFiles"), "xivstream", "xivstream.exe")
 	return append(s,
-		step(host, "Install ffxiv-stream in Program Files", "", []string{"copy ffxiv-stream.exe " + exe}, exists(host, exe),
+		step(host, "Install xivstream in Program Files", "", []string{"copy xivstream.exe " + exe}, exists(host, exe),
 			func() error {
 				self, err := selfBinary()
 				if err != nil {
@@ -85,13 +85,13 @@ func (b *builder) windowsServices(host plan.Local) []plan.Step {
 				return host.WriteFile(exe, self, 0o755, "")
 			}),
 		step(host, "Register the GPU sharing service", "Gives the game the GPU's memory while it runs ("+c.Share.Mode+").",
-			[]string{`sc.exe create ffxiv-stream-gpu-share binPath= "\"` + exe + `\" gpu-share" start= auto`, "sc.exe start ffxiv-stream-gpu-share"},
-			succeeds(host, "sc.exe", "query", "ffxiv-stream-gpu-share"),
+			[]string{`sc.exe create xivstream-gpu-share binPath= "\"` + exe + `\" gpu-share" start= auto`, "sc.exe start xivstream-gpu-share"},
+			succeeds(host, "sc.exe", "query", "xivstream-gpu-share"),
 			func() error {
-				if _, err := sys.Output("sc.exe", "create", "ffxiv-stream-gpu-share", "binPath=", `"`+exe+`" gpu-share`, "start=", "auto"); err != nil {
+				if _, err := sys.Output("sc.exe", "create", "xivstream-gpu-share", "binPath=", `"`+exe+`" gpu-share`, "start=", "auto"); err != nil {
 					return err
 				}
-				_, err := sys.Output("sc.exe", "start", "ffxiv-stream-gpu-share")
+				_, err := sys.Output("sc.exe", "start", "xivstream-gpu-share")
 				return err
 			}))
 }
@@ -137,13 +137,13 @@ func (b *builder) macos() ([]plan.Step, error) {
 			func() error { _, err := sys.Output("brew", "services", "restart", "sunshine"); return err }),
 	}
 	if c.Share.Mode != config.ShareNone {
-		plist := filepath.Join(home, "Library", "LaunchAgents", "dev.spaceghost.ffxiv-stream.gpu-share.plist")
+		plist := filepath.Join(home, "Library", "LaunchAgents", "dev.spaceghost.xivstream.gpu-share.plist")
 		exe, _ := os.Executable()
 		s = append(s, plan.File(host, plist, []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>dev.spaceghost.ffxiv-stream.gpu-share</string>
+  <key>Label</key><string>dev.spaceghost.xivstream.gpu-share</string>
   <key>ProgramArguments</key><array><string>%s</string><string>gpu-share</string></array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
@@ -151,7 +151,7 @@ func (b *builder) macos() ([]plan.Step, error) {
 </plist>
 `, exe)), 0o644, "", "Write the GPU sharing launch agent", ""),
 			step(host, "Load the GPU sharing launch agent", "", []string{"launchctl bootstrap gui/$UID " + plist},
-				succeeds(host, "launchctl", "list", "dev.spaceghost.ffxiv-stream.gpu-share"),
+				succeeds(host, "launchctl", "list", "dev.spaceghost.xivstream.gpu-share"),
 				func() error {
 					_, err := sys.Output("sh", "-c", `launchctl bootstrap gui/$(id -u) "$1"`, "-", plist)
 					return err

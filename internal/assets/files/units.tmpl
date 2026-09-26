@@ -1,17 +1,17 @@
 {{define "session.service"}}[Unit]
-Description=ffxiv-stream headless session (sway + launcher + {{.Backend}})
+Description=xivstream headless session (sway + launcher + {{.Backend}})
 # A user service, not a system one with PAMName: logind would move the
 # processes into a session scope, where stopping the service leaves them
 # running and holding their ports.
-After=pipewire.service wireplumber.service ffxiv-stream-keyring.service
-Wants=pipewire.service wireplumber.service ffxiv-stream-keyring.service
+After=pipewire.service wireplumber.service xivstream-keyring.service
+Wants=pipewire.service wireplumber.service xivstream-keyring.service
 
 [Service]
 Environment=XDG_SESSION_TYPE=wayland
 {{- if .InContainer}}
-ExecStartPre=/bin/sh -c "until systemctl is-active -q ffxiv-stream-prepare.service; do sleep 1; done"
+ExecStartPre=/bin/sh -c "until systemctl is-active -q xivstream-prepare.service; do sleep 1; done"
 {{- end}}
-ExecStart=/usr/local/lib/ffxiv-stream/session
+ExecStart=/usr/local/lib/xivstream/session
 Restart=on-failure
 RestartSec=5
 
@@ -24,7 +24,7 @@ Description=Secret Service (gnome-keyring) so XIVLauncher can keep the login
 # session has no login screen to unlock a keyring with, so the "login" keyring
 # has an empty password and is unlocked at start: the secret is protected by
 # the home directory's permissions, as for any auto-login desktop.
-Before=ffxiv-stream-session.service
+Before=xivstream-session.service
 
 [Service]
 ExecStart=/bin/sh -c "printf '' | exec /usr/bin/gnome-keyring-daemon --replace --foreground --unlock --components=secrets"
@@ -35,7 +35,7 @@ RestartSec=2
 WantedBy=default.target
 {{end}}
 {{define "prepare.service"}}[Unit]
-Description=ffxiv-stream: make the attached GPU usable to the session
+Description=xivstream: make the attached GPU usable to the session
 # The GPU's device nodes and (NVIDIA) driver libraries are recreated by Incus
 # at every start; run at every boot so they are right before the session.
 After=local-fs.target
@@ -44,18 +44,18 @@ DefaultDependencies=no
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/local/bin/ffxiv-stream prepare-gpu
+ExecStart=/usr/local/bin/xivstream prepare-gpu
 
 [Install]
 WantedBy=multi-user.target
 {{end}}
 {{define "input-bridge.service"}}[Unit]
-Description=ffxiv-stream: announce the streaming server's virtual input devices to this container's udev
+Description=xivstream: announce the streaming server's virtual input devices to this container's udev
 After=systemd-udevd.service
 Requires=systemd-udevd.service
 
 [Service]
-ExecStart=/usr/local/bin/ffxiv-stream input-bridge
+ExecStart=/usr/local/bin/xivstream input-bridge
 Restart=always
 RestartSec=2
 
@@ -63,37 +63,37 @@ RestartSec=2
 WantedBy=multi-user.target
 {{end}}
 {{define "container.service"}}[Unit]
-Description=ffxiv-stream: start the {{.Incus.Container}} container once its stream address exists
+Description=xivstream: start the {{.Incus.Container}} container once its stream address exists
 After=incus.service tailscaled.service network-online.target
 Wants=incus.service network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/local/bin/ffxiv-stream start-container
+ExecStart=/usr/local/bin/xivstream start-container
 
 [Install]
 WantedBy=multi-user.target
 {{end}}
 {{define "gpu-share.service"}}[Unit]
-Description=ffxiv-stream: give the game the GPU's memory while it runs
+Description=xivstream: give the game the GPU's memory while it runs
 After=incus.service
 Wants=incus.service
 
 [Service]
-ExecStart=/usr/local/bin/ffxiv-stream gpu-share
-ExecStopPost=/usr/local/bin/ffxiv-stream gpu-share --stop
+ExecStart=/usr/local/bin/xivstream gpu-share
+ExecStopPost=/usr/local/bin/xivstream gpu-share --stop
 Restart=always
 RestartSec=5
-StateDirectory=ffxiv-stream
+StateDirectory=xivstream
 
 [Install]
 WantedBy=multi-user.target
 {{end}}
-{{define "udev.rules"}}# ffxiv-stream: the streaming server in the {{.Incus.Container}} Incus container
+{{define "udev.rules"}}# xivstream: the streaming server in the {{.Incus.Container}} Incus container
 # creates the client's keyboard, mice and pads through uinput/uhid. Their event
 # nodes appear in this host's /dev/input, which the container sees through a
-# bind mount; ffxiv-stream input-bridge inside it announces them to its udev.
+# bind mount; xivstream input-bridge inside it announces them to its udev.
 # The names are the match: no real device is called this.
 #
 # Give just these nodes to the container (chown, because udev will not take a
@@ -115,7 +115,7 @@ SUBSYSTEM=="input", KERNEL=="event*", DEVPATH=="/devices/virtual/misc/uhid/*:054
 SUBSYSTEM=="hidraw", ACTION=="add", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*", RUN+="/bin/sh -c 'mkdir -p {{.HidrawDir}} && rm -f {{.HidrawDir}}/%k && mknod -m 0660 {{.HidrawDir}}/%k c $major $minor && chown {{.HostUID}}:{{.HostGID}} {{.HidrawDir}}/%k'"
 SUBSYSTEM=="hidraw", ACTION=="remove", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*", RUN+="/bin/rm -f {{.HidrawDir}}/%k"
 {{end}}{{end}}
-{{define "wireplumber.conf"}}# ffxiv-stream: sound only ever leaves through the stream. The streaming server
+{{define "wireplumber.conf"}}# xivstream: sound only ever leaves through the stream. The streaming server
 # makes its own virtual sinks and captures them; nothing may create a sink that
 # plays aloud, even if sound hardware or Bluetooth appeared later.
 wireplumber.profiles = {

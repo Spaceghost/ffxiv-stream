@@ -16,9 +16,9 @@ import (
 
 	"github.com/charmbracelet/huh"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
-	"github.com/Spaceghost/ffxiv-stream/internal/detect"
-	"github.com/Spaceghost/ffxiv-stream/internal/mods"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/detect"
+	"github.com/Spaceghost/xivstream-dalamud/internal/mods"
 )
 
 // Result is what the user chose to do with the configuration.
@@ -37,7 +37,7 @@ func Run(start config.Config, f detect.Facts, advanced bool, review func(config.
 	suggest(&c, f)
 
 	if err := form(huh.NewGroup(
-		huh.NewNote().Title("ffxiv-stream").Description(summary(f)),
+		huh.NewNote().Title("xivstream").Description(summary(f)),
 		huh.NewSelect[string]().Title("Where should the game run?").
 			Options(topologies(f)...).Value(&c.Topology),
 	)).Run(); err != nil {

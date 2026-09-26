@@ -3,7 +3,7 @@ package steps
 import (
 	"testing"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
 )
 
 func TestHidrawHostDir(t *testing.T) {
@@ -14,8 +14,8 @@ func TestHidrawHostDir(t *testing.T) {
 	}{
 		{config.BackendSunshine, "x360", ""},
 		{config.BackendSunshine, "", ""},
-		{config.BackendSunshine, "ds5", "/dev/ffxiv-stream/ffxiv"},
-		{config.BackendSunshine, "auto", "/dev/ffxiv-stream/ffxiv"},
+		{config.BackendSunshine, "ds5", "/dev/xivstream/ffxiv"},
+		{config.BackendSunshine, "auto", "/dev/xivstream/ffxiv"},
 		{config.BackendWolf, "ds5", ""},
 	} {
 		c.Backend, c.Stream.Gamepad = tc.backend, tc.pad
