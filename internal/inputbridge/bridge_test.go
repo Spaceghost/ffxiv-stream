@@ -40,3 +40,16 @@ func TestMatches(t *testing.T) {
 		}
 	}
 }
+
+func TestStreamedPad(t *testing.T) {
+	for path, want := range map[string]bool{
+		"/sys/devices/virtual/misc/uhid/0003:054C:0CE6.0004/hidraw/hidraw3":                true,
+		"/sys/devices/virtual/misc/uhid/0003:054c:09cc.0007/input/input30/event12":         true,
+		"/sys/devices/virtual/misc/uhid/0005:046D:B023.0002/hidraw/hidraw4":                false, // a BLE mouse through BlueZ
+		"/sys/devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.3/0003:054C:0CE6.0001/hidraw": false, // a real DualSense on USB
+	} {
+		if got := StreamedPad(path); got != want {
+			t.Errorf("StreamedPad(%q) = %v", path, got)
+		}
+	}
+}

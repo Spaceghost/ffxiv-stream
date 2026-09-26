@@ -15,6 +15,12 @@
 // CAP_SYS_ADMIN in the container). Incus's own unix-hotplug device is not used
 // because in Incus 6.23 it deadlocks incusd when a container stops while a
 // matched device is being removed.
+//
+// An emulated DualSense (gamepad = "ds5") is a uhid device with Sony's ids,
+// and Wine reads PlayStation pads through hidraw. hidraw nodes sit in /dev
+// itself, so the host's udev rule copies the streamed pad's node into a
+// directory of its own, bind-mounted here at HidrawDir; this links each into
+// /dev under its own name and announces it like the event nodes.
 package inputbridge
 
 import (
@@ -40,18 +46,33 @@ import (
 // host's own keyboards.
 var Marks = []string{"libvirtualhid", "Selkies", "Wolf"}
 
+// HidrawDir is where the host's rule puts the streamed pads' hidraw nodes.
+const HidrawDir = "/dev/hidraw-stream"
+
+// StreamedPad says whether a device's sysfs path is a pad the streaming server
+// emulates through uhid with Sony's vendor id (a DualSense or DualShock 4):
+// "/devices/virtual/misc/uhid/0003:054C:0CE6.0004/...". A real pad is on a
+// USB or Bluetooth bus, never under uhid with that id (BlueZ's uhid devices
+// are Bluetooth LE, which Sony pads are not).
+func StreamedPad(sysPath string) bool {
+	i := strings.Index(sysPath, "/virtual/misc/uhid/")
+	return i >= 0 && strings.Contains(strings.ToUpper(sysPath[i:]), ":054C:")
+}
+
 type Bridge struct {
-	InputDir string
-	SysDir   string // /sys
-	UdevData string // /run/udev/data
-	Marks    []string
-	inputGID int
-	nl       int
-	known    map[string]map[string]string // event node -> uevent properties
+	InputDir  string
+	HidrawDir string
+	DevDir    string // /dev, where the hidraw links go
+	SysDir    string // /sys
+	UdevData  string // /run/udev/data
+	Marks     []string
+	inputGID  int
+	nl        int
+	known     map[string]map[string]string // event node -> uevent properties
 }
 
 func New() (*Bridge, error) {
-	b := &Bridge{InputDir: "/dev/input", SysDir: "/sys", UdevData: "/run/udev/data", Marks: Marks, known: map[string]map[string]string{}}
+	b := &Bridge{InputDir: "/dev/input", HidrawDir: HidrawDir, DevDir: "/dev", SysDir: "/sys", UdevData: "/run/udev/data", Marks: Marks, known: map[string]map[string]string{}}
 	g, err := user.LookupGroup("input")
 	if err != nil {
 		return nil, fmt.Errorf("group input: %w", err)
@@ -73,17 +94,30 @@ func (b *Bridge) Run() error {
 	if err != nil {
 		return fmt.Errorf("inotify: %w", err)
 	}
-	if _, err := unix.InotifyAddWatch(fd, b.InputDir, unix.IN_CREATE|unix.IN_DELETE); err != nil {
+	inputWD, err := unix.InotifyAddWatch(fd, b.InputDir, unix.IN_CREATE|unix.IN_DELETE)
+	if err != nil {
 		return fmt.Errorf("inotify on %s: %w", b.InputDir, err)
 	}
-	entries, _ := os.ReadDir(b.InputDir)
-	names := make([]string, 0, len(entries))
-	for _, e := range entries {
-		names = append(names, e.Name())
+	hidWD := -1
+	if st, err := os.Stat(b.HidrawDir); err == nil && st.IsDir() { // only with a DualSense-emulating stream
+		if hidWD, err = unix.InotifyAddWatch(fd, b.HidrawDir, unix.IN_CREATE|unix.IN_DELETE|unix.IN_ATTRIB); err != nil {
+			return fmt.Errorf("inotify on %s: %w", b.HidrawDir, err)
+		}
 	}
-	sort.Strings(names)
-	for _, n := range names { // devices that predate us
-		b.added(n, true)
+	for _, dir := range []string{b.InputDir, b.HidrawDir} { // devices that predate us
+		entries, _ := os.ReadDir(dir)
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		sort.Strings(names)
+		for _, n := range names {
+			if dir == b.InputDir {
+				b.added(n, true)
+			} else if hidWD >= 0 {
+				b.hidrawAdded(n, true)
+			}
+		}
 	}
 	buf := make([]byte, 64*1024)
 	for {
@@ -100,9 +134,13 @@ func (b *Bridge) Run() error {
 			name := strings.TrimRight(string(nameBytes), "\x00")
 			i += unix.SizeofInotifyEvent + int(ev.Len)
 			switch {
-			case ev.Mask&unix.IN_CREATE != 0:
+			case int(ev.Wd) == hidWD && ev.Mask&(unix.IN_CREATE|unix.IN_ATTRIB) != 0:
+				b.hidrawAdded(name, false) // ATTRIB: the host's chown landed
+			case int(ev.Wd) == hidWD && ev.Mask&unix.IN_DELETE != 0:
+				b.hidrawRemoved(name)
+			case int(ev.Wd) == inputWD && ev.Mask&unix.IN_CREATE != 0:
 				b.added(name, false)
-			case ev.Mask&unix.IN_DELETE != 0:
+			case int(ev.Wd) == inputWD && ev.Mask&unix.IN_DELETE != 0:
 				b.removed(name)
 			}
 		}
@@ -125,7 +163,11 @@ func (b *Bridge) describe(node string) map[string]string {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	if !b.matches(name) {
+	real, err := filepath.EvalSymlinks(sysdir)
+	if err != nil {
+		return nil
+	}
+	if !b.matches(name) && !StreamedPad(real) {
 		return nil
 	}
 	props := map[string]string{}
@@ -133,10 +175,6 @@ func (b *Bridge) describe(node string) map[string]string {
 		if k, v, ok := strings.Cut(line, "="); ok {
 			props[k] = v
 		}
-	}
-	real, err := filepath.EvalSymlinks(sysdir)
-	if err != nil {
-		return nil
 	}
 	props["DEVPATH"] = strings.TrimPrefix(real, b.SysDir)
 	props["SUBSYSTEM"] = "input"
@@ -184,6 +222,74 @@ func (b *Bridge) removed(node string) {
 	delete(b.known, node)
 	if err := b.inject("remove", props); err != nil {
 		log.Printf("remove %s: %v", props["DEVNAME"], err)
+	}
+}
+
+// hidrawAdded: a streamed pad's hidraw node arrived in HidrawDir (or its
+// owner changed). Once it is ours, /dev/<node> links to it and udev hears of
+// it, with the HID name as NAME for the log.
+func (b *Bridge) hidrawAdded(node string, startup bool) {
+	key := "hidraw:" + node
+	if !strings.HasPrefix(node, "hidraw") || b.known[key] != nil {
+		return
+	}
+	var st unix.Stat_t
+	if err := unix.Stat(filepath.Join(b.HidrawDir, node), &st); err != nil || int(st.Gid) != b.inputGID {
+		return // not handed over yet: the ATTRIB of its chown brings it back here
+	}
+	sysdir := filepath.Join(b.SysDir, "class", "hidraw", node)
+	real, err := filepath.EvalSymlinks(sysdir)
+	if err != nil || !StreamedPad(real) {
+		return
+	}
+	props := map[string]string{}
+	for _, line := range strings.Fields(readFile(filepath.Join(sysdir, "uevent"))) {
+		if k, v, ok := strings.Cut(line, "="); ok {
+			props[k] = v
+		}
+	}
+	props["DEVPATH"] = strings.TrimPrefix(real, b.SysDir)
+	props["SUBSYSTEM"] = "hidraw"
+	props["DEVNAME"] = node
+	for _, line := range strings.Split(readFile(filepath.Join(sysdir, "device", "uevent")), "\n") {
+		if v, ok := strings.CutPrefix(line, "HID_NAME="); ok {
+			props["NAME"] = v
+		}
+	}
+	link := filepath.Join(b.DevDir, node)
+	if fi, err := os.Lstat(link); err == nil && fi.Mode()&os.ModeSymlink == 0 {
+		log.Printf("warning: %s exists and is not ours; %s not linked", link, node)
+		return
+	}
+	_ = os.Remove(link)
+	if err := os.Symlink(filepath.Join(b.HidrawDir, node), link); err != nil {
+		log.Printf("link %s: %v", link, err)
+		return
+	}
+	b.known[key] = props
+	if startup && os.Getenv("FFXIV_STREAM_REANNOUNCE") == "" {
+		if _, err := os.Stat(filepath.Join(b.UdevData, "c"+props["MAJOR"]+":"+props["MINOR"])); err == nil {
+			return
+		}
+	}
+	if err := b.inject("add", props); err != nil {
+		log.Printf("add %s: %v", node, err)
+	}
+}
+
+func (b *Bridge) hidrawRemoved(node string) {
+	key := "hidraw:" + node
+	props := b.known[key]
+	if props == nil {
+		return
+	}
+	delete(b.known, key)
+	link := filepath.Join(b.DevDir, node)
+	if fi, err := os.Lstat(link); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		_ = os.Remove(link)
+	}
+	if err := b.inject("remove", props); err != nil {
+		log.Printf("remove %s: %v", node, err)
 	}
 }
 

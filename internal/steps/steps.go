@@ -60,6 +60,22 @@ type view struct {
 	HostUID         int
 	HostGID         int
 	InputMarks      []string
+	HidrawDir       string // the host directory for the streamed pads' hidraw nodes, or ""
+}
+
+// ContainerHidrawDir is where the container sees them (inputbridge.HidrawDir).
+const ContainerHidrawDir = "/dev/hidraw-stream"
+
+// HidrawHostDir is where the host's udev rule copies the hidraw nodes of the
+// pads Sunshine emulates as PlayStation pads (gamepad "ds5" or "auto"), for
+// the container to see at /dev/hidraw-stream; "" with an Xbox pad or another
+// server. It is under /dev because /run is mounted nodev: device nodes there
+// cannot be opened, not even through a bind mount.
+func HidrawHostDir(c config.Config) string {
+	if c.Backend != config.BackendSunshine || c.Stream.Gamepad == "" || c.Stream.Gamepad == "x360" {
+		return ""
+	}
+	return "/dev/ffxiv-stream/" + c.Incus.Container
 }
 
 func (b *builder) view(inContainer bool) view {
@@ -68,6 +84,7 @@ func (b *builder) view(inContainer bool) view {
 		Config: b.c, InContainer: inContainer, NVIDIA: gpu.Vendor == "nvidia", Headless: b.c.Session.Headless,
 		LauncherCommand: "/opt/xivlauncher/XIVLauncher.Core",
 		InputMarks:      []string{"libvirtualhid"},
+		HidrawDir:       HidrawHostDir(b.c),
 	}
 	switch gpu.Vendor {
 	case "nvidia":
