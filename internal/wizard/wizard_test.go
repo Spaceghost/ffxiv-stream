@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
-	"github.com/Spaceghost/ffxiv-stream/internal/detect"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/detect"
 )
 
 // The wizard in accessible mode, answered line by line as a person (or a

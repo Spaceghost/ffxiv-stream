@@ -18,7 +18,7 @@ jobs:
           go-version-file: go.mod
       - run: go vet ./...
       - run: go test ./...
-      - run: go build ./cmd/ffxiv-stream
+      - run: go build ./cmd/xivstream
   release-dry-run:
     runs-on: ubuntu-latest
     steps:
@@ -38,5 +38,5 @@ jobs:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v31
       # Fails when go.mod/go.sum changed without updating flake.nix's vendorHash.
-      - run: nix build .#ffxiv-stream -L && ./result/bin/ffxiv-stream version
+      - run: nix build .#xivstream -L && ./result/bin/xivstream version
       - run: nix flake check

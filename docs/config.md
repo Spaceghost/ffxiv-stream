@@ -1,12 +1,12 @@
 # Configuration
 
-`ffxiv-stream wizard` writes this file; `ffxiv-stream apply` reads it. Keys you
+`xivstream wizard` writes this file; `xivstream apply` reads it. Keys you
 leave out take the defaults shown. Empty values are detected when apply runs.
 
-Location: `/etc/ffxiv-stream/config.toml` (root on Linux), `~/.config/ffxiv-stream/config.toml`
-(other users), `%ProgramData%\ffxiv-stream\config.toml` (Windows),
-`~/Library/Application Support/ffxiv-stream/config.toml` (macOS), or `--config PATH` /
-`$FFXIV_STREAM_CONFIG`.
+Location: `/etc/xivstream/config.toml` (root on Linux), `~/.config/xivstream/config.toml`
+(other users), `%ProgramData%\xivstream\config.toml` (Windows),
+`~/Library/Application Support/xivstream/config.toml` (macOS), or `--config PATH` /
+`$XIVSTREAM_CONFIG`.
 
 ```toml
 topology = "incus"            # "incus": an Incus container on this Linux host; "host": this machine
@@ -67,4 +67,4 @@ companions = true             # e.g. ghostty-agent for GhosttyDalamud
 ```
 
 State directory (generated passwords, the game's measured VRAM peak):
-`/var/lib/ffxiv-stream` as root, `~/.local/state/ffxiv-stream` otherwise.
+`/var/lib/xivstream` as root, `~/.local/state/xivstream` otherwise.

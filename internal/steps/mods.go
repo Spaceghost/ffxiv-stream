@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/gpushare"
-	"github.com/Spaceghost/ffxiv-stream/internal/mods"
-	"github.com/Spaceghost/ffxiv-stream/internal/plan"
-	"github.com/Spaceghost/ffxiv-stream/internal/releases"
+	"github.com/Spaceghost/xivstream-dalamud/internal/gpushare"
+	"github.com/Spaceghost/xivstream-dalamud/internal/mods"
+	"github.com/Spaceghost/xivstream-dalamud/internal/plan"
+	"github.com/Spaceghost/xivstream-dalamud/internal/releases"
 )
 
 var errGameRunning = errors.New("the game is running; Dalamud rewrites its configuration while it runs. Close the game and run apply again")

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/plan"
+	"github.com/Spaceghost/xivstream-dalamud/internal/plan"
 )
 
 // Pair submits a Moonlight PIN. Sunshine's web UI listens on base+1 on the

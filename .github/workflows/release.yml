@@ -39,5 +39,5 @@ jobs:
           file: images/xivlauncher/Containerfile
           push: true
           tags: |
-            ghcr.io/spaceghost/ffxiv-stream-xivlauncher:latest
-            ghcr.io/spaceghost/ffxiv-stream-xivlauncher:${{ github.ref_name }}
+            ghcr.io/spaceghost/xivstream-xivlauncher:latest
+            ghcr.io/spaceghost/xivstream-xivlauncher:${{ github.ref_name }}

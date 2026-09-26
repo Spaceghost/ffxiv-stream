@@ -1,8 +1,8 @@
-// Package plan is how ffxiv-stream changes a machine: as a list of steps, each
+// Package plan is how xivstream changes a machine: as a list of steps, each
 // of which can say whether it is already done, what it would do, and do it.
 //
-// `ffxiv-stream plan` prints the steps with their state (a dry run, nothing is
-// changed); `ffxiv-stream apply` does the ones not done yet. Every step is
+// `xivstream plan` prints the steps with their state (a dry run, nothing is
+// changed); `xivstream apply` does the ones not done yet. Every step is
 // idempotent, so apply can be re-run after a failure, a config change or an
 // upgrade and only does what is needed.
 package plan
@@ -14,7 +14,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/sys"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sys"
 )
 
 type Step struct {

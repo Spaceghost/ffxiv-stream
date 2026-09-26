@@ -1,4 +1,4 @@
-module github.com/Spaceghost/ffxiv-stream
+module github.com/Spaceghost/xivstream-dalamud
 
 go 1.26.0
 

@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
-	"github.com/Spaceghost/ffxiv-stream/internal/plan"
-	"github.com/Spaceghost/ffxiv-stream/internal/sys"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/plan"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sys"
 )
 
 // Port is one port a backend listens on.
@@ -68,11 +68,11 @@ func (b *builder) incus() ([]plan.Step, error) {
 	// container's rule would hand (or reveal) one client's input to the other.
 	s = append(s, step(host, "Check that no other container streams from this host",
 		"Two streaming containers would see each other's streamed keyboard and mouse.",
-		[]string{"ls /etc/udev/rules.d/70-ffxiv-stream-*.rules"},
+		[]string{"ls /etc/udev/rules.d/70-xivstream-*.rules"},
 		func() (bool, error) { return otherStreamer(name) == "", nil },
 		func() error {
 			return fmt.Errorf("container %q already streams from this host (%s); one streaming container per host keeps each client's input private. Remove it first, or set incus.container = %q",
-				otherStreamer(name), "/etc/udev/rules.d/70-ffxiv-stream-"+otherStreamer(name)+".rules", otherStreamer(name))
+				otherStreamer(name), "/etc/udev/rules.d/70-xivstream-"+otherStreamer(name)+".rules", otherStreamer(name))
 		}))
 
 	create := []string{"incus", "init", c.Incus.Image, name}
@@ -196,7 +196,7 @@ func (b *builder) incus() ([]plan.Step, error) {
 				if hasDevice(name, dev) {
 					continue
 				}
-				// A forward made by hand before ffxiv-stream (sun-video, ...) holds the
+				// A forward made by hand before xivstream (sun-video, ...) holds the
 				// same address and port: replace it, or the new one cannot listen.
 				want := fmt.Sprintf("%s:%s:%d", p.Proto, listen, p.Num)
 				for _, old := range proxiesListening(name, want) {
@@ -216,13 +216,13 @@ func (b *builder) incus() ([]plan.Step, error) {
 	s = append(s, b.session(ct, true)...)
 	udev := step(host, "Install the host udev rule for the stream's input devices",
 		"Hands just the stream's virtual devices to the container's user; every other input device on this host stays out of its reach.",
-		[]string{"write /etc/udev/rules.d/70-ffxiv-stream-" + name + ".rules", "udevadm control --reload"},
+		[]string{"write /etc/udev/rules.d/70-xivstream-" + name + ".rules", "udevadm control --reload"},
 		func() (bool, error) {
 			want, err := b.udevRule(ct)
 			if err != nil {
 				return false, err
 			}
-			old, err := os.ReadFile("/etc/udev/rules.d/70-ffxiv-stream-" + name + ".rules")
+			old, err := os.ReadFile("/etc/udev/rules.d/70-xivstream-" + name + ".rules")
 			return err == nil && bytes.Equal(old, want), nil
 		},
 		func() error {
@@ -230,7 +230,7 @@ func (b *builder) incus() ([]plan.Step, error) {
 			if err != nil {
 				return err
 			}
-			if err := host.WriteFile("/etc/udev/rules.d/70-ffxiv-stream-"+name+".rules", want, 0o644, ""); err != nil {
+			if err := host.WriteFile("/etc/udev/rules.d/70-xivstream-"+name+".rules", want, 0o644, ""); err != nil {
 				return err
 			}
 			_, err = sys.Output("udevadm", "control", "--reload")
@@ -360,7 +360,7 @@ func (b *builder) installSelf(host plan.Local, ct plan.Incus) []plan.Step {
 			if err != nil {
 				return false, err
 			}
-			old, err := t.ReadFile("/usr/local/bin/ffxiv-stream")
+			old, err := t.ReadFile("/usr/local/bin/xivstream")
 			return err == nil && bytes.Equal(bytes.TrimRight(old, "\n"), bytes.TrimRight(self, "\n")), nil
 		}
 	}
@@ -370,13 +370,13 @@ func (b *builder) installSelf(host plan.Local, ct plan.Incus) []plan.Step {
 			if err != nil {
 				return err
 			}
-			return t.WriteFile("/usr/local/bin/ffxiv-stream", self, 0o755, "")
+			return t.WriteFile("/usr/local/bin/xivstream", self, 0o755, "")
 		}
 	}
 	return []plan.Step{
-		step(host, "Install ffxiv-stream on this host", "Its services run it.", []string{"install -m 755 ffxiv-stream /usr/local/bin/"},
+		step(host, "Install xivstream on this host", "Its services run it.", []string{"install -m 755 xivstream /usr/local/bin/"},
 			sameOrPackaged(host, same(host)), install(host)),
-		step(ct, "Install ffxiv-stream in the container", "The input bridge and GPU preparation run it.", []string{"incus file push ffxiv-stream " + ct.Container + "/usr/local/bin/"},
+		step(ct, "Install xivstream in the container", "The input bridge and GPU preparation run it.", []string{"incus file push xivstream " + ct.Container + "/usr/local/bin/"},
 			same(ct), install(ct)),
 	}
 }
@@ -397,7 +397,7 @@ func (b *builder) hostServices(host plan.Local) []plan.Step {
 	c := b.c
 	v := b.view(false)
 	data, _ := c.Encode()
-	s := []plan.Step{plan.File(host, "/etc/ffxiv-stream/config.toml", data, 0o600, "", "Write /etc/ffxiv-stream/config.toml", "The host services read it.")}
+	s := []plan.Step{plan.File(host, "/etc/xivstream/config.toml", data, 0o600, "", "Write /etc/xivstream/config.toml", "The host services read it.")}
 	if b.f.Init == "systemd" {
 		s = append(s, retireHostUnits(host))
 	}
@@ -406,25 +406,25 @@ func (b *builder) hostServices(host plan.Local) []plan.Step {
 		// NixOS declares services in its configuration; units written into /etc
 		// would not survive a rebuild. The flake's module does what these steps do.
 		return append(s, step(host, "Declare the services in your NixOS configuration",
-			"On NixOS: imports = [ ffxiv-stream.nixosModules.default ]; services.ffxiv-stream.enable = true;",
-			[]string{"services.ffxiv-stream = { enable = true; configFile = /etc/ffxiv-stream/config.toml; };"},
-			succeeds(host, "systemctl", "cat", "ffxiv-stream-gpu-share.service"),
+			"On NixOS: imports = [ xivstream.nixosModules.default ]; services.xivstream.enable = true;",
+			[]string{"services.xivstream = { enable = true; configFile = /etc/xivstream/config.toml; };"},
+			succeeds(host, "systemctl", "cat", "xivstream-gpu-share.service"),
 			func() error {
-				return fmt.Errorf("add the ffxiv-stream NixOS module (see the README's NixOS section), rebuild, then run apply again")
+				return fmt.Errorf("add the xivstream NixOS module (see the README's NixOS section), rebuild, then run apply again")
 			}))
 	case b.f.Init == "openrc":
 		return append(s, b.openrcServices(host)...)
 	}
 	var enable []string
 	if c.Topology == config.TopologyIncus && c.Incus.Autostart {
-		s = append(s, plan.File(host, "/etc/systemd/system/ffxiv-stream-container.service", render("container.service", v), 0o644, "",
+		s = append(s, plan.File(host, "/etc/systemd/system/xivstream-container.service", render("container.service", v), 0o644, "",
 			"Write the container start service", "Incus refuses to start a container whose forwards listen on an address that does not exist yet (Tailscale comes up late in boot)."))
-		enable = append(enable, "ffxiv-stream-container.service")
+		enable = append(enable, "xivstream-container.service")
 	}
 	if c.Share.Mode != config.ShareNone {
-		s = append(s, plan.File(host, "/etc/systemd/system/ffxiv-stream-gpu-share.service", render("gpu-share.service", v), 0o644, "",
+		s = append(s, plan.File(host, "/etc/systemd/system/xivstream-gpu-share.service", render("gpu-share.service", v), 0o644, "",
 			"Write the GPU sharing service", "Gives the game the GPU's memory while it runs ("+c.Share.Mode+")."))
-		enable = append(enable, "ffxiv-stream-gpu-share.service")
+		enable = append(enable, "xivstream-gpu-share.service")
 	}
 	if len(enable) > 0 {
 		s = append(s, step(host, "Enable the host services", "", []string{"systemctl enable --now " + strings.Join(enable, " ")},
@@ -445,9 +445,9 @@ func (b *builder) openrcServices(host plan.Local) []plan.Step {
 	c := b.c
 	script := func(name, desc, args, stop string) []byte {
 		return []byte(fmt.Sprintf(`#!/sbin/openrc-run
-# ffxiv-stream: %s (generated by ffxiv-stream)
+# xivstream: %s (generated by xivstream)
 description="%s"
-command=/usr/local/bin/ffxiv-stream
+command=/usr/local/bin/xivstream
 command_args="%s"
 command_background=true
 pidfile="/run/${RC_SVCNAME}.pid"
@@ -463,16 +463,16 @@ depend() {
 	var s []plan.Step
 	var names []string
 	if c.Topology == config.TopologyIncus && c.Incus.Autostart {
-		s = append(s, plan.File(host, "/etc/init.d/ffxiv-stream-container",
+		s = append(s, plan.File(host, "/etc/init.d/xivstream-container",
 			[]byte(strings.Replace(string(script("container", "start the "+c.Incus.Container+" container once its stream address exists", "start-container", "")),
 				"command_background=true\n", "", 1)), 0o755, "", "Write the container start service (OpenRC)", ""))
-		names = append(names, "ffxiv-stream-container")
+		names = append(names, "xivstream-container")
 	}
 	if c.Share.Mode != config.ShareNone {
-		s = append(s, plan.File(host, "/etc/init.d/ffxiv-stream-gpu-share",
+		s = append(s, plan.File(host, "/etc/init.d/xivstream-gpu-share",
 			script("gpu-share", "give the game the GPU's memory while it runs", "gpu-share",
-				"stop_post() {\n\t/usr/local/bin/ffxiv-stream gpu-share --stop\n}\n"), 0o755, "", "Write the GPU sharing service (OpenRC)", ""))
-		names = append(names, "ffxiv-stream-gpu-share")
+				"stop_post() {\n\t/usr/local/bin/xivstream gpu-share --stop\n}\n"), 0o755, "", "Write the GPU sharing service (OpenRC)", ""))
+		names = append(names, "xivstream-gpu-share")
 	}
 	for _, n := range names {
 		s = append(s, step(host, "Enable "+n+" (OpenRC)", "", []string{"rc-update add " + n + " default", "rc-service " + n + " start"},
@@ -485,11 +485,11 @@ depend() {
 	return s
 }
 
-// otherStreamer names another container ffxiv-stream set up on this host, if any.
+// otherStreamer names another container xivstream set up on this host, if any.
 func otherStreamer(name string) string {
-	rules, _ := filepath.Glob("/etc/udev/rules.d/70-ffxiv-stream-*.rules")
+	rules, _ := filepath.Glob("/etc/udev/rules.d/70-xivstream-*.rules")
 	for _, r := range rules {
-		other := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(r), "70-ffxiv-stream-"), ".rules")
+		other := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(r), "70-xivstream-"), ".rules")
 		if other != name {
 			return other
 		}
@@ -517,30 +517,45 @@ func proxiesListening(name, listen string) []string {
 }
 
 // Units and rules from the hand-built setup this project grew out of; their
-// ffxiv-stream-* replacements do the same jobs, and running both would double
+// xivstream-* replacements do the same jobs, and running both would double
 // them (two VRAM reservations, two rules chowning the same devices).
-var oldHostUnits = []string{"ffxiv-gpu-arbiter.service", "ffxiv-container.service"}
+// The same for a machine set up before the project was renamed xivstream.
+var oldHostUnits = []string{"ffxiv-gpu-arbiter.service", "ffxiv-container.service",
+	"ffxiv-stream-container.service", "ffxiv-stream-gpu-share.service"}
 
 const oldUdevRule = "/etc/udev/rules.d/70-sunshine-virtual-input.rules"
 
+// oldUdevRules: the rules above, and each container's under the old name.
+func oldUdevRules() []string {
+	rules, _ := filepath.Glob("/etc/udev/rules.d/70-ffxiv-stream-*.rules")
+	return append([]string{oldUdevRule}, rules...)
+}
+
 func retireHostUnits(host plan.Local) plan.Step {
-	return step(host, "Turn off host services from a pre-ffxiv-stream setup, if any",
-		"ffxiv-gpu-arbiter, ffxiv-container and 70-sunshine-virtual-input.rules are superseded by the ffxiv-stream-* services and rule.",
-		[]string{"systemctl disable --now " + strings.Join(oldHostUnits, " "), "rm " + oldUdevRule},
+	return step(host, "Turn off host services from a pre-xivstream setup, if any",
+		"ffxiv-gpu-arbiter, ffxiv-container, 70-sunshine-virtual-input.rules and the ffxiv-stream-* units and rules of before the rename are superseded by the xivstream-* services and rule.",
+		[]string{"systemctl disable --now " + strings.Join(oldHostUnits, " "), "rm " + strings.Join(oldUdevRules(), " ")},
 		func() (bool, error) {
 			for _, u := range oldHostUnits {
 				if _, err := sys.Output("systemctl", "is-enabled", "-q", u); err == nil {
 					return false, nil
 				}
 			}
-			return !sys.Exists(oldUdevRule), nil
+			for _, r := range oldUdevRules() {
+				if sys.Exists(r) {
+					return false, nil
+				}
+			}
+			return true, nil
 		},
 		func() error {
 			for _, u := range oldHostUnits {
 				_, _ = sys.Output("systemctl", "disable", "--now", u)
 			}
-			if err := os.Remove(oldUdevRule); err != nil && !os.IsNotExist(err) {
-				return err
+			for _, r := range oldUdevRules() {
+				if err := os.Remove(r); err != nil && !os.IsNotExist(err) {
+					return err
+				}
 			}
 			_, err := sys.Output("udevadm", "control", "--reload")
 			return err

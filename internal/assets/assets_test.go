@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
 )
 
 type view struct {
@@ -58,9 +58,9 @@ func TestStreamScriptPerBackend(t *testing.T) {
 	if strings.Contains(rule, "hidraw") {
 		t.Error("an Xbox pad needs no hidraw rule")
 	}
-	ds5 := string(MustRender("udev.rules", view{Config: c, HostUID: 1001000, HostGID: 1000104, InputMarks: []string{"libvirtualhid"}, HidrawDir: "/dev/ffxiv-stream/ffxiv"}))
+	ds5 := string(MustRender("udev.rules", view{Config: c, HostUID: 1001000, HostGID: 1000104, InputMarks: []string{"libvirtualhid"}, HidrawDir: "/dev/xivstream/ffxiv"}))
 	for _, want := range []string{`SUBSYSTEM=="hidraw", ACTION=="add", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*"`,
-		"mknod -m 0660 /dev/ffxiv-stream/ffxiv/%k c $major $minor", "chown 1001000:1000104 /dev/ffxiv-stream/ffxiv/%k",
+		"mknod -m 0660 /dev/xivstream/ffxiv/%k c $major $minor", "chown 1001000:1000104 /dev/xivstream/ffxiv/%k",
 		`ACTION=="remove"`, `KERNEL=="event*", DEVPATH=="/devices/virtual/misc/uhid/*:054[Cc]:*"`} {
 		if !strings.Contains(ds5, want) {
 			t.Errorf("the ds5 rule lacks %q:\n%s", want, ds5)

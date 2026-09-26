@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/assets"
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
-	"github.com/Spaceghost/ffxiv-stream/internal/plan"
-	"github.com/Spaceghost/ffxiv-stream/internal/releases"
+	"github.com/Spaceghost/xivstream-dalamud/internal/assets"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/plan"
+	"github.com/Spaceghost/xivstream-dalamud/internal/releases"
 )
 
 // Packages the headless session needs, per package manager. Xwayland runs the
@@ -61,7 +61,7 @@ func (b *builder) session(t plan.Target, inContainer bool) []plan.Step {
 	u := c.Session.User
 	home := "/home/" + u
 	owner := u + ":" + u
-	lib := "/usr/local/lib/ffxiv-stream"
+	lib := "/usr/local/lib/xivstream"
 	var s []plan.Step
 
 	s = append(s, step(t, "Install the session packages (sway, Xwayland, PipeWire, keyring)",
@@ -123,10 +123,10 @@ loginctl enable-linger %[1]s`, u))
 		plan.File(t, lib+"/session", render("session.sh.tmpl", v), 0o755, "", "Write the session script", "Starts the headless sway the stream captures."),
 		plan.File(t, lib+"/launcher", render("launcher.sh.tmpl", v), 0o755, "", "Write the launcher loop", "Keeps XIVLauncher on screen: the stream is the only way in."),
 		plan.File(t, lib+"/stream", render("stream.sh.tmpl", v), 0o755, "", "Write the streaming server loop", "Starts "+c.Backend+" from inside sway so it captures the right output."),
-		plan.File(t, "/etc/ffxiv-stream/sway.conf", render("sway.conf.tmpl", v), 0o644, "", "Write the session's sway config", "Fullscreen everything; flat mouse acceleration for streamed mice."),
+		plan.File(t, "/etc/xivstream/sway.conf", render("sway.conf.tmpl", v), 0o644, "", "Write the session's sway config", "Fullscreen everything; flat mouse acceleration for streamed mice."),
 	)
 	if c.Audio.StreamOnly {
-		s = append(s, plan.File(t, "/etc/wireplumber/wireplumber.conf.d/90-ffxiv-stream-audio.conf", render("wireplumber.conf", v), 0o644, "",
+		s = append(s, plan.File(t, "/etc/wireplumber/wireplumber.conf.d/90-xivstream-audio.conf", render("wireplumber.conf", v), 0o644, "",
 			"Keep sound in the stream", "WirePlumber gets no ALSA or Bluetooth outputs, so the game can only be heard through the stream."))
 	}
 
@@ -146,11 +146,11 @@ loginctl enable-linger %[1]s`, u))
 			sunshineConfStep(t, home+"/.config/sunshine/sunshine.conf", conf, owner),
 			plan.File(t, home+"/.config/sunshine/apps.json", []byte(appsJSON), 0o644, owner, "Write Sunshine's app list",
 				"One app, the session itself: the launcher is already on screen."),
-			step(t, "Set Sunshine's web UI login ("+c.Stream.WebUser+")", "Pairing clients happens through Sunshine's web UI or `ffxiv-stream pair`.",
+			step(t, "Set Sunshine's web UI login ("+c.Stream.WebUser+")", "Pairing clients happens through Sunshine's web UI or `xivstream pair`.",
 				[]string{"sunshine --creds " + c.Stream.WebUser + " <password>  (as " + u + ")"},
 				// Done when set by an earlier apply, or when Sunshine already has a
 				// login (an existing setup): never replace a password someone chose.
-				succeeds(t, "sh", "-c", `test -e `+home+`/.config/ffxiv-stream/sunshine-creds-set || grep -q '"username"' `+home+`/.config/sunshine/sunshine_state.json`),
+				succeeds(t, "sh", "-c", `test -e `+home+`/.config/xivstream/sunshine-creds-set || grep -q '"username"' `+home+`/.config/sunshine/sunshine_state.json`),
 				func() error {
 					pw, err := secret("sunshine-web-password", c.Stream.WebPassword)
 					if err != nil {
@@ -158,20 +158,20 @@ loginctl enable-linger %[1]s`, u))
 					}
 					// The password goes over stdin, never on a command line (or into an error message).
 					_, err = t.RunInput([]byte(pw), "su", "-", u, "-c",
-						fmt.Sprintf(`sunshine --creds %s "$(cat)" >/dev/null && mkdir -p ~/.config/ffxiv-stream && touch ~/.config/ffxiv-stream/sunshine-creds-set`, shq(c.Stream.WebUser)))
+						fmt.Sprintf(`sunshine --creds %s "$(cat)" >/dev/null && mkdir -p ~/.config/xivstream && touch ~/.config/xivstream/sunshine-creds-set`, shq(c.Stream.WebUser)))
 					return err
 				}))
 	case config.BackendSelkies:
 		s = append(s, step(t, "Write Selkies' login", "Selkies refuses to start with basic auth and no password.",
-			[]string{"write " + home + "/.config/ffxiv-stream/selkies.env (mode 600)"},
-			succeeds(t, "grep", "-q", "^SELKIES_BASIC_AUTH_PASSWORD=", home+"/.config/ffxiv-stream/selkies.env"),
+			[]string{"write " + home + "/.config/xivstream/selkies.env (mode 600)"},
+			succeeds(t, "grep", "-q", "^SELKIES_BASIC_AUTH_PASSWORD=", home+"/.config/xivstream/selkies.env"),
 			func() error {
 				pw, err := secret("selkies-password", c.Selkies.Password)
 				if err != nil {
 					return err
 				}
 				env := fmt.Sprintf("SELKIES_BASIC_AUTH_PASSWORD=%s\n", pw)
-				return t.WriteFile(home+"/.config/ffxiv-stream/selkies.env", []byte(env), 0o600, owner)
+				return t.WriteFile(home+"/.config/xivstream/selkies.env", []byte(env), 0o600, owner)
 			}))
 	}
 
@@ -185,7 +185,7 @@ loginctl enable-linger %[1]s`, u))
 					return err
 				}
 				_, err := t.Run("sh", "-c", `set -e; d=$(cd "$(dirname "$(gcc -print-file-name=libc.so.6)")" && pwd -P)
-gcc -O2 -Wall -shared -fPIC /usr/local/lib/ffxiv-stream/dmabuf-wait.c -o "$d/libdmabuf-wait.so" -ldl
+gcc -O2 -Wall -shared -fPIC /usr/local/lib/xivstream/dmabuf-wait.c -o "$d/libdmabuf-wait.so" -ldl
 chmod 4755 "$d/libdmabuf-wait.so"`)
 				return err
 			}))
@@ -210,50 +210,50 @@ chmod 4755 "$d/libdmabuf-wait.so"`)
 
 	units := home + "/.config/systemd/user"
 	s = append(s,
-		plan.File(t, units+"/ffxiv-stream-keyring.service", render("keyring.service", v), 0o644, owner, "Write the keyring user service", ""),
-		plan.File(t, units+"/ffxiv-stream-session.service", render("session.service", v), 0o644, owner, "Write the session user service", ""),
+		plan.File(t, units+"/xivstream-keyring.service", render("keyring.service", v), 0o644, owner, "Write the keyring user service", ""),
+		plan.File(t, units+"/xivstream-session.service", render("session.service", v), 0o644, owner, "Write the session user service", ""),
 	)
 	if inContainer {
 		s = append(s,
-			plan.File(t, "/etc/systemd/system/ffxiv-stream-prepare.service", render("prepare.service", v), 0o644, "", "Write the GPU preparation service",
+			plan.File(t, "/etc/systemd/system/xivstream-prepare.service", render("prepare.service", v), 0o644, "", "Write the GPU preparation service",
 				"Incus recreates the GPU's nodes and driver libraries at every start; they need fixing before the session."),
-			plan.File(t, "/etc/systemd/system/ffxiv-stream-input-bridge.service", render("input-bridge.service", v), 0o644, "", "Write the input bridge service",
+			plan.File(t, "/etc/systemd/system/xivstream-input-bridge.service", render("input-bridge.service", v), 0o644, "", "Write the input bridge service",
 				"Announces the stream's virtual keyboard, mouse and pads to the container's udev."),
 		)
 	}
 	s = append(s, b.retireOldSetup(t, u)...)
 	s = append(s, step(t, "Enable and start the services", "",
-		[]string{"systemctl enable --now ffxiv-stream-prepare ffxiv-stream-input-bridge", "systemctl --user -M " + u + "@ enable --now ffxiv-stream-keyring ffxiv-stream-session"},
-		succeeds(t, "sh", "-c", fmt.Sprintf("systemctl --user -M %s@ is-active -q ffxiv-stream-session", u)),
+		[]string{"systemctl enable --now xivstream-prepare xivstream-input-bridge", "systemctl --user -M " + u + "@ enable --now xivstream-keyring xivstream-session"},
+		succeeds(t, "sh", "-c", fmt.Sprintf("systemctl --user -M %s@ is-active -q xivstream-session", u)),
 		func() error {
 			if inContainer {
 				if _, err := t.Run("systemctl", "daemon-reload"); err != nil {
 					return err
 				}
-				if _, err := t.Run("systemctl", "enable", "--now", "ffxiv-stream-prepare.service", "ffxiv-stream-input-bridge.service"); err != nil {
+				if _, err := t.Run("systemctl", "enable", "--now", "xivstream-prepare.service", "xivstream-input-bridge.service"); err != nil {
 					return err
 				}
 			}
 			if _, err := t.Run("systemctl", "--user", "-M", u+"@", "daemon-reload"); err != nil {
 				return err
 			}
-			_, err := t.Run("systemctl", "--user", "-M", u+"@", "enable", "--now", "ffxiv-stream-keyring.service", "ffxiv-stream-session.service")
+			_, err := t.Run("systemctl", "--user", "-M", u+"@", "enable", "--now", "xivstream-keyring.service", "xivstream-session.service")
 			return err
 		}))
 	restart := step(t, "Restart the session to use what changed",
 		"Never while the game runs: that would end it. Then it is left for the next start.",
-		[]string{"systemctl --user -M " + u + "@ restart ffxiv-stream-session"}, nil,
+		[]string{"systemctl --user -M " + u + "@ restart xivstream-session"}, nil,
 		func() error {
 			if out, _ := t.Run("sh", "-c", `pgrep -f 'ffxiv_dx11\.exe' || true`); strings.TrimSpace(out) != "" {
 				fmt.Print("(the game is running: restart skipped; the changes apply when the session next starts) ")
 				return nil
 			}
 			if inContainer {
-				if _, err := t.Run("systemctl", "restart", "ffxiv-stream-input-bridge.service"); err != nil {
+				if _, err := t.Run("systemctl", "restart", "xivstream-input-bridge.service"); err != nil {
 					return err
 				}
 			}
-			_, err := t.Run("systemctl", "--user", "-M", u+"@", "restart", "ffxiv-stream-session.service")
+			_, err := t.Run("systemctl", "--user", "-M", u+"@", "restart", "xivstream-session.service")
 			return err
 		})
 	restart.IfChanged = true
@@ -359,13 +359,14 @@ func withoutAdapter(s string) string {
 // retireOldSetup turns off the hand-made units this project grew out of, if a
 // machine still has them, so two sessions never run at once.
 func (b *builder) retireOldSetup(t plan.Target, u string) []plan.Step {
-	return []plan.Step{step(t, "Turn off units from a pre-ffxiv-stream setup, if any",
-		"ffxiv-session, ffxiv-input-bridge, ffxiv-prepare and ffxiv-keyring are superseded by the ffxiv-stream-* units.",
-		[]string{"systemctl disable --now ffxiv-input-bridge ffxiv-prepare", "systemctl --user -M " + u + "@ disable --now ffxiv-session ffxiv-keyring"},
-		succeeds(t, "sh", "-c", fmt.Sprintf(`! systemctl is-enabled -q ffxiv-input-bridge.service 2>/dev/null && ! systemctl --user -M %s@ is-enabled -q ffxiv-session.service 2>/dev/null`, u)),
+	return []plan.Step{step(t, "Turn off units from a pre-xivstream setup, if any",
+		"ffxiv-session, ffxiv-input-bridge, ffxiv-prepare and ffxiv-keyring, and the ffxiv-stream-* units of before the rename, are superseded by the xivstream-* units.",
+		[]string{"systemctl disable --now ffxiv-input-bridge ffxiv-prepare ffxiv-stream-input-bridge ffxiv-stream-prepare",
+			"systemctl --user -M " + u + "@ disable --now ffxiv-session ffxiv-keyring ffxiv-stream-session ffxiv-stream-keyring"},
+		succeeds(t, "sh", "-c", fmt.Sprintf(`! systemctl is-enabled -q ffxiv-input-bridge.service ffxiv-stream-input-bridge.service 2>/dev/null && ! systemctl --user -M %s@ is-enabled -q ffxiv-session.service ffxiv-stream-session.service 2>/dev/null`, u)),
 		func() error {
-			_, err := t.Run("sh", "-c", fmt.Sprintf(`systemctl disable --now ffxiv-input-bridge.service ffxiv-prepare.service 2>/dev/null
-systemctl --user -M %s@ disable --now ffxiv-session.service ffxiv-keyring.service 2>/dev/null; true`, u))
+			_, err := t.Run("sh", "-c", fmt.Sprintf(`systemctl disable --now ffxiv-input-bridge.service ffxiv-prepare.service ffxiv-stream-input-bridge.service ffxiv-stream-prepare.service 2>/dev/null
+systemctl --user -M %s@ disable --now ffxiv-session.service ffxiv-keyring.service ffxiv-stream-session.service ffxiv-stream-keyring.service 2>/dev/null; true`, u))
 			return err
 		})}
 }

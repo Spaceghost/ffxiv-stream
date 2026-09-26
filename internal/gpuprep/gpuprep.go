@@ -1,5 +1,5 @@
 // Package gpuprep makes a GPU passed into a container usable to the session
-// (`ffxiv-stream prepare-gpu`, run at every container start as root).
+// (`xivstream prepare-gpu`, run at every container start as root).
 package gpuprep
 
 import (
@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/sys"
+	"github.com/Spaceghost/xivstream-dalamud/internal/sys"
 )
 
 // The NVIDIA userspace libraries arrive as bind mounts from the host when the

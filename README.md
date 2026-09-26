@@ -1,10 +1,12 @@
-# ffxiv-stream
+# xivstream
+
+> Formerly **ffxiv-stream**. A machine set up under that name carries over: `xivstream apply` reads its config and state and retires its `ffxiv-stream-*` units.
 
 Stream FINAL FANTASY XIV from a machine with a GPU to your phone, tablet, laptop,
 TV or handheld, with your mods, set up by a wizard.
 
 ```
-$ sudo ffxiv-stream
+$ sudo xivstream
 ```
 
 The wizard looks at the machine and asks only what detection cannot answer:
@@ -23,7 +25,7 @@ The wizard looks at the machine and asks only what detection cannot answer:
   automatically, and optional companions installed outside the game, such as ghostty-agent for
   the Ghostty mod's terminals.
 - **GPU sharing.** When something else uses the GPU (an [almanac](https://github.com/Spaceghost/almanac-dalamud)
-  model server, Ollama), ffxiv-stream can make it step down to a smaller model while you play, or
+  model server, Ollama), xivstream can make it step down to a smaller model while you play, or
   pause it.
 - **Sound.** Optionally, sound never plays aloud on the machine; it only leaves through the stream.
 
@@ -37,11 +39,11 @@ Render nodes, container addresses, id maps and the newest release downloads are 
 when a step runs.
 
 ```
-ffxiv-stream detect                 # what this machine is and has (JSON)
-ffxiv-stream plan -v                # dry run: every step, why, its commands, file diffs
-sudo ffxiv-stream apply --yes       # do what is not done yet
-ffxiv-stream doctor                 # is everything still in place?
-ffxiv-stream pair 1234 ipad         # pair the Moonlight client showing PIN 1234
+xivstream detect                 # what this machine is and has (JSON)
+xivstream plan -v                # dry run: every step, why, its commands, file diffs
+sudo xivstream apply --yes       # do what is not done yet
+xivstream doctor                 # is everything still in place?
+xivstream pair 1234 ipad         # pair the Moonlight client showing PIN 1234
 ```
 
 Each step checks whether it is already done, so `apply` is safe to re-run after a failure,
@@ -69,14 +71,14 @@ for how each streaming server is set up and why.
 
 | Host | Install | Services |
 |---|---|---|
-| Fedora, RHEL-likes | `dnf install ffxiv-stream-*.rpm` | systemd |
-| Debian, Ubuntu | `apt install ./ffxiv-stream_*.deb` | systemd |
-| Arch, SteamOS dev mode | `pacman -U ffxiv-stream-*.pkg.tar.zst` | systemd |
-| Alpine | `apk add --allow-untrusted ffxiv-stream-*.apk` | OpenRC |
-| NixOS, Nix | `nix run github:Spaceghost/ffxiv-stream`, or the NixOS module | declared |
+| Fedora, RHEL-likes | `dnf install xivstream-*.rpm` | systemd |
+| Debian, Ubuntu | `apt install ./xivstream_*.deb` | systemd |
+| Arch, SteamOS dev mode | `pacman -U xivstream-*.pkg.tar.zst` | systemd |
+| Alpine | `apk add --allow-untrusted xivstream-*.apk` | OpenRC |
+| NixOS, Nix | `nix run github:Spaceghost/xivstream-dalamud`, or the NixOS module | declared |
 | Bazzite, SteamOS, Kinoite (read-only) | the static binary in `~/.local/bin` | systemd (Flatpak apps) |
-| Windows 10/11 | `winget install Spaceghost.ffxiv-stream` or `scoop install ffxiv-stream` | Windows service |
-| macOS | `brew install spaceghost/tap/ffxiv-stream` | launchd |
+| Windows 10/11 | `winget install Spaceghost.xivstream` or `scoop install xivstream` | Windows service |
+| macOS | `brew install spaceghost/tap/xivstream` | launchd |
 
 Every release also has static binaries for linux-amd64, linux-arm64, windows-amd64 and
 darwin-amd64/arm64.
@@ -91,12 +93,12 @@ has run them. Reports welcome.
 
 ```nix
 {
-  inputs.ffxiv-stream.url = "github:Spaceghost/ffxiv-stream";
-  outputs = { nixpkgs, ffxiv-stream, ... }: {
+  inputs.xivstream.url = "github:Spaceghost/xivstream-dalamud";
+  outputs = { nixpkgs, xivstream, ... }: {
     nixosConfigurations.box = nixpkgs.lib.nixosSystem {
       modules = [
-        ffxiv-stream.nixosModules.default
-        { services.ffxiv-stream.enable = true; }
+        xivstream.nixosModules.default
+        { services.xivstream.enable = true; }
       ];
     };
   };
@@ -132,7 +134,7 @@ These came out of getting this working for real, and each one is set up for you:
 
 ```
 go test ./...
-go build ./cmd/ffxiv-stream
+go build ./cmd/xivstream
 ```
 
 Releases are built by GoReleaser (`.goreleaser.yaml`) from a tag.

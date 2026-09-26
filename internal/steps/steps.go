@@ -16,9 +16,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/Spaceghost/ffxiv-stream/internal/config"
-	"github.com/Spaceghost/ffxiv-stream/internal/detect"
-	"github.com/Spaceghost/ffxiv-stream/internal/plan"
+	"github.com/Spaceghost/xivstream-dalamud/internal/config"
+	"github.com/Spaceghost/xivstream-dalamud/internal/detect"
+	"github.com/Spaceghost/xivstream-dalamud/internal/plan"
 )
 
 // Build returns the steps for c on the machine described by f.
@@ -75,7 +75,7 @@ func HidrawHostDir(c config.Config) string {
 	if c.Backend != config.BackendSunshine || c.Stream.Gamepad == "" || c.Stream.Gamepad == "x360" {
 		return ""
 	}
-	return "/dev/ffxiv-stream/" + c.Incus.Container
+	return "/dev/xivstream/" + c.Incus.Container
 }
 
 func (b *builder) view(inContainer bool) view {

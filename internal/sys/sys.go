@@ -1,4 +1,4 @@
-// Package sys runs commands and touches files for the rest of ffxiv-stream,
+// Package sys runs commands and touches files for the rest of xivstream,
 // in one place, so dry runs and tests can see every side effect.
 package sys
 

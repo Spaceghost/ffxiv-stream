@@ -1,5 +1,5 @@
 {
-  description = "ffxiv-stream: stream FINAL FANTASY XIV with Sunshine, Wolf or Selkies, set up by a wizard";
+  description = "xivstream: stream FINAL FANTASY XIV with Sunshine, Wolf or Selkies, set up by a wizard";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -10,41 +10,41 @@
     in
     {
       packages = forAll (pkgs: rec {
-        ffxiv-stream = pkgs.buildGoModule {
-          pname = "ffxiv-stream";
+        xivstream = pkgs.buildGoModule {
+          pname = "xivstream";
           version = self.shortRev or "dev";
           src = ./.;
           # After changing go.mod/go.sum: set pkgs.lib.fakeHash, build, and paste the hash nix prints.
           vendorHash = "sha256-Kh9FwlPYK0l04KRamzYyNlUuur7/syRJebTfSxW2YxM=";
-          subPackages = [ "cmd/ffxiv-stream" ];
+          subPackages = [ "cmd/xivstream" ];
           env.CGO_ENABLED = 0;
           ldflags = [ "-s" "-w" "-X main.version=${self.shortRev or "dev"}" ];
           meta = {
             description = "Stream FINAL FANTASY XIV with Sunshine, Wolf or Selkies, set up by a wizard";
-            homepage = "https://github.com/Spaceghost/ffxiv-stream";
+            homepage = "https://github.com/Spaceghost/xivstream-dalamud";
             license = pkgs.lib.licenses.mit;
-            mainProgram = "ffxiv-stream";
+            mainProgram = "xivstream";
           };
         };
-        default = ffxiv-stream;
+        default = xivstream;
       });
 
-      # NixOS declares services; `ffxiv-stream apply` does not write units there.
+      # NixOS declares services; `xivstream apply` does not write units there.
       # The wizard's config file is still the one source of settings.
       nixosModules.default = { config, lib, pkgs, ... }:
         let
-          cfg = config.services.ffxiv-stream;
+          cfg = config.services.xivstream;
           pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
           toml = pkgs.formats.toml { };
-          configFile = if cfg.settings != null then toml.generate "ffxiv-stream.toml" cfg.settings else cfg.configFile;
+          configFile = if cfg.settings != null then toml.generate "xivstream.toml" cfg.settings else cfg.configFile;
         in
         {
-          options.services.ffxiv-stream = {
-            enable = lib.mkEnableOption "ffxiv-stream's host services (GPU sharing, container start)";
+          options.services.xivstream = {
+            enable = lib.mkEnableOption "xivstream's host services (GPU sharing, container start)";
             configFile = lib.mkOption {
               type = lib.types.path;
-              default = "/etc/ffxiv-stream/config.toml";
-              description = "Config written by `ffxiv-stream wizard` (used when settings is null).";
+              default = "/etc/xivstream/config.toml";
+              description = "Config written by `xivstream wizard` (used when settings is null).";
             };
             settings = lib.mkOption {
               type = lib.types.nullOr toml.type;
@@ -56,32 +56,32 @@
           config = lib.mkIf cfg.enable {
             environment.systemPackages = [ pkg ];
             boot.kernelModules = [ "uinput" "uhid" ];
-            systemd.services.ffxiv-stream-gpu-share = {
-              description = "ffxiv-stream: give the game the GPU's memory while it runs";
+            systemd.services.xivstream-gpu-share = {
+              description = "xivstream: give the game the GPU's memory while it runs";
               wantedBy = [ "multi-user.target" ];
               after = [ "incus.service" ];
               wants = [ "incus.service" ];
               path = [ pkgs.incus pkgs.curl pkgs.procps pkgs.iproute2 ];
-              environment.FFXIV_STREAM_CONFIG = toString configFile;
+              environment.XIVSTREAM_CONFIG = toString configFile;
               serviceConfig = {
-                ExecStart = "${pkg}/bin/ffxiv-stream gpu-share";
-                ExecStopPost = "${pkg}/bin/ffxiv-stream gpu-share --stop";
+                ExecStart = "${pkg}/bin/xivstream gpu-share";
+                ExecStopPost = "${pkg}/bin/xivstream gpu-share --stop";
                 Restart = "always";
                 RestartSec = 5;
-                StateDirectory = "ffxiv-stream";
+                StateDirectory = "xivstream";
               };
             };
-            systemd.services.ffxiv-stream-container = {
-              description = "ffxiv-stream: start the game container once its stream address exists";
+            systemd.services.xivstream-container = {
+              description = "xivstream: start the game container once its stream address exists";
               wantedBy = [ "multi-user.target" ];
               after = [ "incus.service" "tailscaled.service" "network-online.target" ];
               wants = [ "incus.service" "network-online.target" ];
               path = [ pkgs.incus pkgs.iproute2 ];
-              environment.FFXIV_STREAM_CONFIG = toString configFile;
+              environment.XIVSTREAM_CONFIG = toString configFile;
               serviceConfig = {
                 Type = "oneshot";
                 RemainAfterExit = true;
-                ExecStart = "${pkg}/bin/ffxiv-stream start-container";
+                ExecStart = "${pkg}/bin/xivstream start-container";
               };
             };
           };

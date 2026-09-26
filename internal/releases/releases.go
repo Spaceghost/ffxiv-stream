@@ -1,5 +1,5 @@
 // Package releases finds download links on GitHub releases at apply time, so
-// ffxiv-stream always installs the current Sunshine, Selkies, XIVLauncher and
+// xivstream always installs the current Sunshine, Selkies, XIVLauncher and
 // ghostty-agent instead of versions frozen into it.
 package releases
 
